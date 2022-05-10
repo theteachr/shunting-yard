@@ -58,9 +58,40 @@ impl Display for Token {
 	}
 }
 
+#[derive(Debug)]
+enum ResolveError {
+	Token(char),
+	LeftParenNotFound,
+	NotEnoughOperands,
+}
+
 // FIXME Add a type for each kind of error.
 #[derive(Debug)]
 struct InvalidToken(char);
+
+#[derive(Debug)]
+struct LeftParenNotFound;
+
+#[derive(Debug)]
+struct NotEnoughOperands;
+
+impl From<NotEnoughOperands> for ResolveError {
+	fn from(_: NotEnoughOperands) -> Self {
+		Self::NotEnoughOperands
+	}
+}
+
+impl From<LeftParenNotFound> for ResolveError {
+	fn from(_: LeftParenNotFound) -> Self {
+		Self::LeftParenNotFound
+	}
+}
+
+impl From<InvalidToken> for ResolveError {
+	fn from(invalid_token: InvalidToken) -> Self {
+		Self::Token(invalid_token.0)
+	}
+}
 
 impl From<Operation> for Token {
 	fn from(op: Operation) -> Self {
@@ -94,16 +125,16 @@ impl TryFrom<char> for Token {
 fn pop_until_left_paren(
 	output: &mut Vec<Token>,
 	ops: &mut Vec<Operation>,
-) -> Result<(), InvalidToken> {
+) -> Result<(), LeftParenNotFound> {
 	while let Some(op) = ops.pop() {
 		if matches!(op, Operation::LeftParen) {
-			println!("Removed paren.");
 			return Ok(());
 		}
+
 		output.push(Token::Op(op));
 	}
 
-	Err(InvalidToken(')'))
+	Err(LeftParenNotFound)
 }
 
 fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
@@ -117,18 +148,18 @@ fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Ve
 fn handle_operation_evaluation(
 	op: Operation,
 	numbers: &mut VecDeque<i32>,
-) -> Result<(), InvalidToken> {
+) -> Result<(), NotEnoughOperands> {
 	let result = numbers
 		.pop_front()
 		.zip(numbers.pop_front())
 		.map(|(rop, lop)| op.perform(lop, rop))
-		.ok_or(InvalidToken('x'))?;
+		.ok_or(NotEnoughOperands)?;
 
 	Ok(numbers.push_front(result))
 }
 
 // TODO Make this work for multi digit numbers.
-fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, InvalidToken> {
+fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	let mut output: Vec<Token> = Vec::new();
 	let mut ops: Vec<Operation> = Vec::new();
 	let tokens: Result<Vec<Token>, InvalidToken> = expr.chars().map(Token::try_from).collect();
@@ -147,14 +178,14 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, InvalidToken> {
 	Ok(output)
 }
 
-fn parse(expr: &str) -> Result<String, InvalidToken> {
+fn parse(expr: &str) -> Result<String, ResolveError> {
 	Ok(parse_into_tokens(expr)?
 		.iter()
 		.map(Token::to_string)
 		.collect())
 }
 
-fn eval(expr: &str) -> Result<i32, InvalidToken> {
+fn eval(expr: &str) -> Result<i32, ResolveError> {
 	let tokens = parse_into_tokens(expr)?.into_iter();
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
@@ -215,6 +246,7 @@ mod tests {
 		assert!(!Sub.precedes(&Add))
 	}
 
+	// TODO Use macros to write the tests.
 	#[test]
 	fn mul_precedes_div() {
 		assert!(Mul.precedes(&Div))
@@ -244,6 +276,7 @@ mod tests {
 	fn parsing_works() {
 		assert!(matches!(parse("1+s"), Err(_)));
 		assert!(matches!(parse("1+2-8)"), Err(_)));
+		assert!(matches!(parse(")))"), Err(_)));
 		assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
 		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
 		assert_eq!(parse("(0)").unwrap(), "0");
@@ -257,5 +290,6 @@ mod tests {
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 		assert!(matches!(eval("expr"), Err(_)));
+		assert!(matches!(eval("))"), Err(_)));
 	}
 }
