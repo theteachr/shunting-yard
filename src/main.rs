@@ -58,6 +58,7 @@ impl Display for Token {
 	}
 }
 
+// FIXME Add a type for each kind of error.
 #[derive(Debug)]
 struct InvalidToken(char);
 
@@ -142,15 +143,13 @@ fn eval(expr: &str) -> Result<i32, InvalidToken> {
 		match token {
 			Token::Num(n) => numbers.push_front(n),
 			Token::Op(op) => {
-				if let Some(result) = numbers
+				let result = numbers
 					.pop_front()
 					.zip(numbers.pop_front())
 					.map(|(rop, lop)| op.perform(lop, rop))
-				{
-					numbers.push_front(result);
-				} else {
-					return Err(InvalidToken('x'));
-				}
+					.ok_or(InvalidToken('x'))?;
+
+				numbers.push_front(result);
 			}
 		}
 	}
