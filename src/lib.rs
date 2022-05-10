@@ -163,9 +163,9 @@ fn handle_operation_evaluation(
 fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	let mut output: Vec<Token> = Vec::new();
 	let mut ops: Vec<Operation> = Vec::new();
-	let tokens: Result<Vec<Token>, InvalidToken> = expr.chars().map(Token::try_from).collect();
+	let tokens = expr.chars().map(Token::try_from).collect::<Result<Vec<Token>, _>>()?;
 
-	for token in tokens?.into_iter() {
+	for token in tokens.into_iter() {
 		match token {
 			Token::Num(_) => output.push(token),
 			Token::Op(op @ Operation::LeftParen) => ops.push(op),
@@ -174,7 +174,9 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 		}
 	}
 
-	output.extend(ops.drain(..).rev().map(Token::Op));
+	while let Some(op) = ops.pop() {
+		output.push(op.into())
+	}
 
 	Ok(output)
 }
