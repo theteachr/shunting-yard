@@ -63,6 +63,7 @@ pub enum ResolveError {
 	Token(char),
 	LeftParenNotFound,
 	NotEnoughOperands,
+	NoValue,
 }
 
 // FIXME Add a type for each kind of error.
@@ -186,17 +187,17 @@ pub fn parse(expr: &str) -> Result<String, ResolveError> {
 }
 
 pub fn eval(expr: &str) -> Result<i32, ResolveError> {
-	let tokens = parse_into_tokens(expr)?.into_iter();
+	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
-	for token in tokens {
+	for token in tokens.into_iter() {
 		match token {
 			Token::Num(n) => numbers.push_front(n),
 			Token::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
 		}
 	}
 
-	Ok(numbers.pop_front().unwrap())
+	numbers.pop_front().ok_or(ResolveError::NoValue)
 }
 
 // 1+2-(2+1)*2
