@@ -70,10 +70,10 @@ pub enum ResolveError {
 pub struct InvalidToken(char);
 
 #[derive(Debug)]
-pub struct LeftParenNotFound;
+struct LeftParenNotFound;
 
 #[derive(Debug)]
-pub struct NotEnoughOperands;
+struct NotEnoughOperands;
 
 impl From<NotEnoughOperands> for ResolveError {
 	fn from(_: NotEnoughOperands) -> Self {
