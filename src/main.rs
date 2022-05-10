@@ -62,17 +62,23 @@ impl Display for Token {
 #[derive(Debug)]
 struct InvalidToken(char);
 
+impl From<Operation> for Token {
+	fn from(op: Operation) -> Self {
+		Self::Op(op)
+	}
+}
+
 impl TryFrom<char> for Token {
 	type Error = InvalidToken;
 
 	fn try_from(string: char) -> Result<Self, Self::Error> {
 		let op = match string {
-			'+' => Self::Op(Operation::Add),
-			'-' => Self::Op(Operation::Sub),
-			'*' => Self::Op(Operation::Mul),
-			'/' => Self::Op(Operation::Div),
-			'(' => Self::Op(Operation::LeftParen),
-			')' => Self::Op(Operation::RightParen),
+			'+' => Operation::Add,
+			'-' => Operation::Sub,
+			'*' => Operation::Mul,
+			'/' => Operation::Div,
+			'(' => Operation::LeftParen,
+			')' => Operation::RightParen,
 			s => {
 				return s
 					.to_digit(10)
@@ -81,7 +87,7 @@ impl TryFrom<char> for Token {
 			}
 		};
 
-		Ok(op)
+		Ok(op.into())
 	}
 }
 
