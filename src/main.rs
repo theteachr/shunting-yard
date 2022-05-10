@@ -114,7 +114,10 @@ fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Ve
 	ops.push(op)
 }
 
-fn handle_operation_evaluation(op: Operation, numbers: &mut VecDeque<i32>) -> Result<(), InvalidToken> {
+fn handle_operation_evaluation(
+	op: Operation,
+	numbers: &mut VecDeque<i32>,
+) -> Result<(), InvalidToken> {
 	let result = numbers
 		.pop_front()
 		.zip(numbers.pop_front())
@@ -253,6 +256,6 @@ mod tests {
 		assert_eq!(eval("0").unwrap(), 0);
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
-		assert!(matches!(eval("expr"), Err(_)))
+		assert!(matches!(eval("expr"), Err(_)));
 	}
 }
