@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Operation {
+pub enum Operation {
 	Add = 2,
 	Sub = 1,
 	Mul = 4,
@@ -44,7 +44,7 @@ impl Operation {
 }
 
 #[derive(Debug)]
-enum Token {
+pub enum Token {
 	Num(i32),
 	Op(Operation),
 }
@@ -59,7 +59,7 @@ impl Display for Token {
 }
 
 #[derive(Debug)]
-enum ResolveError {
+pub enum ResolveError {
 	Token(char),
 	LeftParenNotFound,
 	NotEnoughOperands,
@@ -67,13 +67,13 @@ enum ResolveError {
 
 // FIXME Add a type for each kind of error.
 #[derive(Debug)]
-struct InvalidToken(char);
+pub struct InvalidToken(char);
 
 #[derive(Debug)]
-struct LeftParenNotFound;
+pub struct LeftParenNotFound;
 
 #[derive(Debug)]
-struct NotEnoughOperands;
+pub struct NotEnoughOperands;
 
 impl From<NotEnoughOperands> for ResolveError {
 	fn from(_: NotEnoughOperands) -> Self {
@@ -178,14 +178,14 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	Ok(output)
 }
 
-fn parse(expr: &str) -> Result<String, ResolveError> {
+pub fn parse(expr: &str) -> Result<String, ResolveError> {
 	Ok(parse_into_tokens(expr)?
 		.iter()
 		.map(Token::to_string)
 		.collect())
 }
 
-fn eval(expr: &str) -> Result<i32, ResolveError> {
+pub fn eval(expr: &str) -> Result<i32, ResolveError> {
 	let tokens = parse_into_tokens(expr)?.into_iter();
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
@@ -197,17 +197,6 @@ fn eval(expr: &str) -> Result<i32, ResolveError> {
 	}
 
 	Ok(numbers.pop_front().unwrap())
-}
-
-fn main() {
-	let input: String = std::env::args().skip(1).take(1).collect();
-
-	println!(
-		"{}",
-		parse(input.as_str()).unwrap_or("Unparsable input".to_string())
-	);
-
-	println!("{} = {}", input, eval(input.as_str()).unwrap_or(0));
 }
 
 // 1+2-(2+1)*2
