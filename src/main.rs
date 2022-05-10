@@ -100,12 +100,22 @@ fn pop_until_left_paren(
 	Err(InvalidToken(')'))
 }
 
-fn handle_operation(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
+fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
 	while ops.last().map(|&top| top.precedes(&op)).unwrap_or(false) {
 		output.push(Token::Op(ops.pop().unwrap()));
 	}
 
 	ops.push(op)
+}
+
+fn handle_operation_evaluation(op: Operation, numbers: &mut VecDeque<i32>) -> Result<(), InvalidToken> {
+	let result = numbers
+		.pop_front()
+		.zip(numbers.pop_front())
+		.map(|(rop, lop)| op.perform(lop, rop))
+		.ok_or(InvalidToken('x'))?;
+
+	Ok(numbers.push_front(result))
 }
 
 // TODO Make this work for multi digit numbers.
@@ -119,7 +129,7 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, InvalidToken> {
 			Token::Num(_) => output.push(token),
 			Token::Op(op @ Operation::LeftParen) => ops.push(op),
 			Token::Op(Operation::RightParen) => pop_until_left_paren(&mut output, &mut ops)?,
-			Token::Op(op) => handle_operation(op, &mut output, &mut ops),
+			Token::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
 		}
 	}
 
@@ -142,15 +152,7 @@ fn eval(expr: &str) -> Result<i32, InvalidToken> {
 	for token in tokens {
 		match token {
 			Token::Num(n) => numbers.push_front(n),
-			Token::Op(op) => {
-				let result = numbers
-					.pop_front()
-					.zip(numbers.pop_front())
-					.map(|(rop, lop)| op.perform(lop, rop))
-					.ok_or(InvalidToken('x'))?;
-
-				numbers.push_front(result);
-			}
+			Token::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
 		}
 	}
 
