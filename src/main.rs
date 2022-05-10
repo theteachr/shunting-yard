@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
@@ -30,11 +31,21 @@ impl Operation {
 	fn precedes(self, other: &Self) -> bool {
 		self.cmp(other).is_ge()
 	}
+
+	fn perform(&self, a: i32, b: i32) -> i32 {
+		match self {
+			Operation::Add => a + b,
+			Operation::Sub => a - b,
+			Operation::Mul => a * b,
+			Operation::Div => a / b,
+			_ => unreachable!(),
+		}
+	}
 }
 
 #[derive(Debug)]
 enum Token {
-	Num(u32),
+	Num(i32),
 	Op(Operation),
 }
 
@@ -62,7 +73,10 @@ impl TryFrom<char> for Token {
 			'(' => Self::Op(Operation::LeftParen),
 			')' => Self::Op(Operation::RightParen),
 			s => {
-				return s.to_digit(10).map(Self::Num).ok_or(InvalidToken(s));
+				return s
+					.to_digit(10)
+					.map(|digit| Self::Num(digit as i32))
+					.ok_or(InvalidToken(s));
 			}
 		};
 
@@ -70,7 +84,10 @@ impl TryFrom<char> for Token {
 	}
 }
 
-fn pop_until_left_paren(output: &mut Vec<Token>, ops: &mut Vec<Operation>) -> Result<(), InvalidToken> {
+fn pop_until_left_paren(
+	output: &mut Vec<Token>,
+	ops: &mut Vec<Operation>,
+) -> Result<(), InvalidToken> {
 	while let Some(op) = ops.pop() {
 		if matches!(op, Operation::LeftParen) {
 			println!("Removed paren.");
@@ -78,22 +95,20 @@ fn pop_until_left_paren(output: &mut Vec<Token>, ops: &mut Vec<Operation>) -> Re
 		}
 		output.push(Token::Op(op));
 	}
-	
+
 	Err(InvalidToken(')'))
 }
 
 fn handle_operation(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
-	while ops
-		.last()
-		.map(|&top| top.precedes(&op))
-		.unwrap_or(false)
-	{
+	while ops.last().map(|&top| top.precedes(&op)).unwrap_or(false) {
 		output.push(Token::Op(ops.pop().unwrap()));
 	}
-	ops.push(op);
+
+	ops.push(op)
 }
 
-fn parse(expr: &str) -> Result<String, InvalidToken> {
+// TODO Make this work for multi digit numbers.
+fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, InvalidToken> {
 	let mut output: Vec<Token> = Vec::new();
 	let mut ops: Vec<Operation> = Vec::new();
 	let tokens: Result<Vec<Token>, InvalidToken> = expr.chars().map(Token::try_from).collect();
@@ -109,12 +124,49 @@ fn parse(expr: &str) -> Result<String, InvalidToken> {
 
 	output.extend(ops.drain(..).rev().map(Token::Op));
 
-	Ok(output.iter().map(Token::to_string).collect())
+	Ok(output)
+}
+
+fn parse(expr: &str) -> Result<String, InvalidToken> {
+	Ok(parse_into_tokens(expr)?
+		.iter()
+		.map(Token::to_string)
+		.collect())
+}
+
+fn eval(expr: &str) -> Result<i32, InvalidToken> {
+	let tokens = parse_into_tokens(expr)?.into_iter();
+	let mut numbers: VecDeque<i32> = VecDeque::new();
+
+	for token in tokens {
+		match token {
+			Token::Num(n) => numbers.push_front(n),
+			Token::Op(op) => {
+				if let Some(result) = numbers
+					.pop_front()
+					.zip(numbers.pop_front())
+					.map(|(rop, lop)| op.perform(lop, rop))
+				{
+					numbers.push_front(result);
+				} else {
+					return Err(InvalidToken('x'));
+				}
+			}
+		}
+	}
+
+	Ok(numbers.pop_front().unwrap())
 }
 
 fn main() {
 	let input: String = std::env::args().skip(1).take(1).collect();
-	println!("{}", parse(&input).unwrap_or("Unparsable input".to_string()));
+
+	println!(
+		"{}",
+		parse(input.as_str()).unwrap_or("Unparsable input".to_string())
+	);
+
+	println!("{} = {}", input, eval(input.as_str()).unwrap_or(0));
 }
 
 // 1+2-(2+1)*2
@@ -123,11 +175,19 @@ fn main() {
 // ______________________           __________________
 //       output                         input
 //
-//  op_stack: 
+//  op_stack:
 //
 //
 //
 //
+//
+//
+//
+// ______________________           __________________
+//       input                          output
+//
+//  working_stack:
+//  num_queue: 36
 //
 
 #[cfg(test)]
@@ -171,10 +231,20 @@ mod tests {
 	}
 
 	#[test]
-	fn it_works() {
+	fn parsing_works() {
 		assert!(matches!(parse("1+s"), Err(_)));
 		assert!(matches!(parse("1+2-8)"), Err(_)));
 		assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
-		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+")
+		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
+		assert_eq!(parse("(0)").unwrap(), "0");
+	}
+
+	#[test]
+	fn eval_works() {
+		assert_eq!(eval("1+2-(2+1)*2").unwrap(), -3);
+		assert_eq!(eval("2+(3*(8-4))").unwrap(), 14);
+		assert_eq!(eval("0").unwrap(), 0);
+		assert_eq!(eval("(0)").unwrap(), 0);
+		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 	}
 }
