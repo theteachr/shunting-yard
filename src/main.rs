@@ -253,5 +253,6 @@ mod tests {
 		assert_eq!(eval("0").unwrap(), 0);
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
+		assert!(matches!(eval("expr"), Err(_)))
 	}
 }
