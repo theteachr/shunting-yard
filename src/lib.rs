@@ -4,12 +4,12 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operation {
-	Add = 2,
-	Sub = 1,
-	Mul = 4,
-	Div = 3,
+	Add = 1,
+	Sub = 7,
+	Mul = 2,
+	Div = 8,
 	LeftParen = 0,
-	RightParen = 6,
+	RightParen = 9,
 }
 
 impl Display for Operation {
@@ -28,8 +28,8 @@ impl Display for Operation {
 }
 
 impl Operation {
-	fn precedes(self, other: &Self) -> bool {
-		self.cmp(other).is_ge()
+	fn precedes(self, other: Self) -> bool {
+		((self as u8) % 6) >= ((other as u8) % 6)
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
@@ -138,7 +138,7 @@ fn pop_until_left_paren(
 }
 
 fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
-	while ops.last().map(|&top| top.precedes(&op)).unwrap_or(false) {
+	while ops.last().map(|&top| top.precedes(op)).unwrap_or(false) {
 		output.push(Token::Op(ops.pop().unwrap()));
 	}
 
@@ -229,38 +229,38 @@ mod tests {
 
 	#[test]
 	fn add_precedes_sub() {
-		assert!(Add.precedes(&Sub))
+		assert!(Add.precedes(Sub))
 	}
 
 	#[test]
-	fn sub_does_not_precede_add() {
-		assert!(!Sub.precedes(&Add))
+	fn sub_precedes_add() {
+		assert!(Sub.precedes(Add))
 	}
 
 	// TODO Use macros to write the tests.
 	#[test]
 	fn mul_precedes_div() {
-		assert!(Mul.precedes(&Div))
+		assert!(Mul.precedes(Div))
 	}
 
 	#[test]
-	fn div_does_not_precede_mul() {
-		assert!(!Div.precedes(&Mul))
+	fn div_precedes_mul() {
+		assert!(Div.precedes(Mul))
 	}
 
 	#[test]
 	fn mul_precedes_add() {
-		assert!(Mul.precedes(&Add))
+		assert!(Mul.precedes(Add))
 	}
 
 	#[test]
 	fn div_precedes_add() {
-		assert!(Div.precedes(&Add))
+		assert!(Div.precedes(Add))
 	}
 
 	#[test]
 	fn mul_precedes_sub() {
-		assert!(Mul.precedes(&Sub))
+		assert!(Mul.precedes(Sub))
 	}
 
 	#[test]
