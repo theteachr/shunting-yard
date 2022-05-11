@@ -266,9 +266,32 @@ mod tests {
 	}
 
 	#[test]
+	fn add_does_not_precede_mul() {
+		assert!(!Add.precedes(Mul))
+	}
+
+	#[test]
+	fn sub_does_not_precede_mul() {
+		assert!(!Sub.precedes(Mul))
+	}
+
+	#[test]
+	fn sub_does_not_precede_div() {
+		assert!(!Sub.precedes(Div))
+	}
+
+	#[test]
+	fn add_does_not_precede_div() {
+		assert!(!Add.precedes(Div))
+	}
+
+	#[test]
 	fn parsing_works() {
 		assert!(matches!(parse("1+s"), Err(ResolveError::InvalidToken('s'))));
-		assert!(matches!(parse("1+2-8)"), Err(ResolveError::LeftParenNotFound)));
+		assert!(matches!(
+			parse("1+2-8)"),
+			Err(ResolveError::LeftParenNotFound)
+		));
 		assert!(matches!(parse(")))"), Err(ResolveError::LeftParenNotFound)));
 		assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
 		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
