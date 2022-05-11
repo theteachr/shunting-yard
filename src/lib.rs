@@ -60,7 +60,7 @@ impl Display for Token {
 
 #[derive(Debug)]
 pub enum ResolveError {
-	Token(char),
+	InvalidToken(char),
 	LeftParenNotFound,
 	NotEnoughOperands,
 	NoValue,
@@ -89,7 +89,7 @@ impl From<LeftParenNotFound> for ResolveError {
 
 impl From<InvalidToken> for ResolveError {
 	fn from(invalid_token: InvalidToken) -> Self {
-		Self::Token(invalid_token.0)
+		Self::InvalidToken(invalid_token.0)
 	}
 }
 
