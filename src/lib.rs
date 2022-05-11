@@ -265,12 +265,14 @@ mod tests {
 
 	#[test]
 	fn parsing_works() {
-		assert!(matches!(parse("1+s"), Err(_)));
-		assert!(matches!(parse("1+2-8)"), Err(_)));
-		assert!(matches!(parse(")))"), Err(_)));
+		assert!(matches!(parse("1+s"), Err(ResolveError::InvalidToken('s'))));
+		assert!(matches!(parse("1+2-8)"), Err(ResolveError::LeftParenNotFound)));
+		assert!(matches!(parse(")))"), Err(ResolveError::LeftParenNotFound)));
 		assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
 		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
 		assert_eq!(parse("(0)").unwrap(), "0");
+		assert_eq!(parse("").unwrap(), "");
+		assert_eq!(parse("(())").unwrap(), "");
 	}
 
 	#[test]
@@ -280,7 +282,9 @@ mod tests {
 		assert_eq!(eval("0").unwrap(), 0);
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
-		assert!(matches!(eval("expr"), Err(_)));
-		assert!(matches!(eval("))"), Err(_)));
+		assert!(matches!(eval("expr"), Err(ResolveError::InvalidToken('e'))));
+		assert!(matches!(eval("))"), Err(ResolveError::LeftParenNotFound)));
+		assert!(matches!(eval("(())"), Err(ResolveError::NoValue)));
+		assert!(matches!(eval(""), Err(ResolveError::NoValue)));
 	}
 }
