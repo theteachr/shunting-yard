@@ -66,7 +66,6 @@ pub enum ResolveError {
 	NoValue,
 }
 
-// FIXME Add a type for each kind of error.
 #[derive(Debug)]
 pub struct InvalidToken(char);
 
