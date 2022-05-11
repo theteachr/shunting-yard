@@ -1,15 +1,40 @@
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operation {
-	Add = 1,
-	Sub = 7,
-	Mul = 2,
-	Div = 8,
-	LeftParen = 0,
-	RightParen = 9,
+	Add,
+	Sub,
+	Mul,
+	Div,
+	LeftParen,
+	RightParen,
+}
+
+impl PartialOrd for Operation {
+	fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+		Some(self.cmp(rhs))
+	}
+}
+
+impl Ord for Operation {
+	fn cmp(&self, rhs: &Self) -> Ordering {
+		match (self, rhs) {
+			(Self::LeftParen, _)
+			| (Self::Add, Self::Mul)
+			| (Self::Add, Self::Div)
+			| (Self::Sub, Self::Mul)
+			| (Self::Sub, Self::Div) => Ordering::Less,
+			(Self::RightParen, _)
+			| (_, Self::LeftParen)
+			| (Self::Div, _)
+			| (Self::Mul, Self::Add)
+			| (Self::Mul, Self::Sub) => Ordering::Greater,
+			_ => Ordering::Equal,
+		}
+	}
 }
 
 impl Display for Operation {
@@ -29,7 +54,7 @@ impl Display for Operation {
 
 impl Operation {
 	fn precedes(self, rhs: Self) -> bool {
-		((self as u8) % 6) >= ((rhs as u8) % 6)
+		self.cmp(&rhs).is_ge()
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
