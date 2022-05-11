@@ -28,8 +28,8 @@ impl Display for Operation {
 }
 
 impl Operation {
-	fn precedes(self, other: Self) -> bool {
-		((self as u8) % 6) >= ((other as u8) % 6)
+	fn precedes(self, rhs: Self) -> bool {
+		((self as u8) % 6) >= ((rhs as u8) % 6)
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
