@@ -162,7 +162,10 @@ fn handle_operation_evaluation(
 fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	let mut output: Vec<Token> = Vec::new();
 	let mut ops: Vec<Operation> = Vec::new();
-	let tokens = expr.chars().map(Token::try_from).collect::<Result<Vec<Token>, _>>()?;
+	let tokens = expr
+		.chars()
+		.map(Token::try_from)
+		.collect::<Result<Vec<Token>, _>>()?;
 
 	for token in tokens.into_iter() {
 		match token {
@@ -237,7 +240,6 @@ mod tests {
 		assert!(Sub.precedes(Add))
 	}
 
-	// TODO Use macros to write the tests.
 	#[test]
 	fn mul_precedes_div() {
 		assert!(Mul.precedes(Div))
