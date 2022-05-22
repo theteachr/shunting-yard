@@ -170,7 +170,7 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	for token in tokens.into_iter() {
 		match token {
 			Token::Num(_) => output.push(token),
-			Token::Op(op @ Operation::LeftParen) => ops.push(op),
+			Token::Op(lp @ Operation::LeftParen) => ops.push(lp),
 			Token::Op(Operation::RightParen) => pop_until_left_paren(&mut output, &mut ops)?,
 			Token::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
 		}
