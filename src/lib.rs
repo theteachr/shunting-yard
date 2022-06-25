@@ -3,50 +3,74 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Operation {
+pub enum Operator {
 	Add = 1,
 	Sub = 7,
 	Mul = 2,
 	Div = 8,
-	LeftParen = 0,
-	RightParen = 9,
 }
 
-impl Display for Operation {
+impl Display for Operator {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let text = match self {
 			Self::Add => "+",
 			Self::Sub => "-",
 			Self::Mul => "*",
 			Self::Div => "/",
-			Self::LeftParen => "(",
-			Self::RightParen => ")",
 		};
 
 		text.fmt(f)
 	}
 }
 
-impl Operation {
+impl Operator {
 	fn precedes(self, rhs: Self) -> bool {
-		((self as u8) % 6) >= ((rhs as u8) % 6)
+		((self as u8) % 6) >= ((rhs as u8) % 6) // FIXME Magic Numbers
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
 		match self {
-			Operation::Add => a + b,
-			Operation::Sub => a - b,
-			Operation::Mul => a * b,
-			Operation::Div => a / b,
-			_ => unreachable!(),
+			Operator::Add => a + b,
+			Operator::Sub => a - b,
+			Operator::Mul => a * b,
+			Operator::Div => a / b,
 		}
+	}
+}
+
+#[derive(Debug)]
+pub enum Paren {
+	Left,
+	Right,
+}
+
+impl Display for Paren {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let c = match self {
+			Self::Left => "(",
+			Self::Right => ")",
+		};
+
+		c.fmt(f)
 	}
 }
 
 #[derive(Debug)]
 pub enum Token {
 	Num(i32),
-	Op(Operation),
+	Op(Operator),
+	Paren(Paren),
+}
+
+impl Token {
+	fn precedes(&self, rhs: Operator) -> bool {
+		match self {
+			Self::Paren(Paren::Right) => true,
+			Self::Paren(Paren::Left) => false,
+			Self::Op(op) => op.precedes(rhs),
+			Self::Num(_) => unreachable!(),
+		}
+	}
 }
 
 impl Display for Token {
@@ -54,6 +78,7 @@ impl Display for Token {
 		match self {
 			Self::Num(n) => n.fmt(f),
 			Self::Op(op) => op.fmt(f),
+			Self::Paren(paren) => paren.fmt(f),
 		}
 	}
 }
@@ -93,9 +118,15 @@ impl From<InvalidToken> for ResolveError {
 	}
 }
 
-impl From<Operation> for Token {
-	fn from(op: Operation) -> Self {
+impl From<Operator> for Token {
+	fn from(op: Operator) -> Self {
 		Self::Op(op)
+	}
+}
+
+impl From<Paren> for Token {
+	fn from(paren: Paren) -> Self {
+		Self::Paren(paren)
 	}
 }
 
@@ -103,50 +134,48 @@ impl TryFrom<char> for Token {
 	type Error = InvalidToken;
 
 	fn try_from(string: char) -> Result<Self, Self::Error> {
-		let op = match string {
-			'+' => Operation::Add,
-			'-' => Operation::Sub,
-			'*' => Operation::Mul,
-			'/' => Operation::Div,
-			'(' => Operation::LeftParen,
-			')' => Operation::RightParen,
-			s => {
-				return s
+		Ok(match string {
+			'+' => Operator::Add.into(),
+			'-' => Operator::Sub.into(),
+			'*' => Operator::Mul.into(),
+			'/' => Operator::Div.into(),
+			'(' => Paren::Left.into(),
+			')' => Paren::Right.into(),
+			c => {
+				return c
 					.to_digit(10)
 					.map(|digit| Self::Num(digit as i32))
-					.ok_or(InvalidToken(s));
+					.ok_or(InvalidToken(c));
 			}
-		};
-
-		Ok(op.into())
+		})
 	}
 }
 
 fn pop_until_left_paren(
 	output: &mut Vec<Token>,
-	ops: &mut Vec<Operation>,
+	ops: &mut Vec<Token>,
 ) -> Result<(), LeftParenNotFound> {
 	while let Some(op) = ops.pop() {
-		if matches!(op, Operation::LeftParen) {
+		if matches!(op, Token::Paren(Paren::Left)) {
 			return Ok(());
 		}
 
-		output.push(Token::Op(op));
+		output.push(op);
 	}
 
 	Err(LeftParenNotFound)
 }
 
-fn handle_operation_parsing(op: Operation, output: &mut Vec<Token>, ops: &mut Vec<Operation>) {
-	while ops.last().map(|&top| top.precedes(op)).unwrap_or(false) {
-		output.push(Token::Op(ops.pop().unwrap()));
+fn handle_operation_parsing(op: Operator, output: &mut Vec<Token>, ops: &mut Vec<Token>) {
+	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
+		output.push(ops.pop().unwrap());
 	}
 
-	ops.push(op)
+	ops.push(op.into())
 }
 
 fn handle_operation_evaluation(
-	op: Operation,
+	op: Operator,
 	numbers: &mut VecDeque<i32>,
 ) -> Result<(), NotEnoughOperands> {
 	let result = numbers
@@ -161,7 +190,7 @@ fn handle_operation_evaluation(
 // TODO Make this work for multi digit numbers.
 fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	let mut output: Vec<Token> = Vec::new();
-	let mut ops: Vec<Operation> = Vec::new();
+	let mut ops: Vec<Token> = Vec::new();
 	let tokens = expr
 		.chars()
 		.map(Token::try_from)
@@ -170,8 +199,8 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 	for token in tokens.into_iter() {
 		match token {
 			Token::Num(_) => output.push(token),
-			Token::Op(lp @ Operation::LeftParen) => ops.push(lp),
-			Token::Op(Operation::RightParen) => pop_until_left_paren(&mut output, &mut ops)?,
+			Token::Paren(Paren::Left) => ops.push(token),
+			Token::Paren(Paren::Right) => pop_until_left_paren(&mut output, &mut ops)?,
 			Token::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
 		}
 	}
@@ -198,6 +227,7 @@ pub fn eval(expr: &str) -> Result<i32, ResolveError> {
 		match token {
 			Token::Num(n) => numbers.push_front(n),
 			Token::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
+			_ => unreachable!(),
 		}
 	}
 
@@ -228,7 +258,7 @@ pub fn eval(expr: &str) -> Result<i32, ResolveError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use Operation::*;
+	use Operator::*;
 
 	#[test]
 	fn add_precedes_sub() {
