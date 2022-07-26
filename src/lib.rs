@@ -155,7 +155,9 @@ fn handle_operation_evaluation(
 		.map(|(rop, lop)| op.perform(lop, rop))
 		.ok_or(NotEnoughOperands)?;
 
-	Ok(numbers.push_front(result))
+	numbers.push_front(result);
+
+	Ok(())
 }
 
 // TODO Make this work for multi digit numbers.
