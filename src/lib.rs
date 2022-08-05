@@ -56,24 +56,53 @@ impl Display for Paren {
 }
 
 #[derive(Debug)]
-pub enum Token {
+pub enum InToken {
 	Num(i32),
 	Op(Operator),
 	Paren(Paren),
 }
 
-impl Token {
+#[derive(Debug)]
+pub enum OpStackToken {
+	Op(Operator),
+	Paren(Paren),
+}
+
+#[derive(Debug)]
+pub enum OutToken {
+	Num(i32),
+	Op(Operator),
+}
+
+impl OpStackToken {
 	fn precedes(&self, rhs: Operator) -> bool {
 		match self {
 			Self::Paren(Paren::Right) => true,
 			Self::Paren(Paren::Left) => false,
 			Self::Op(op) => op.precedes(rhs),
-			Self::Num(_) => unreachable!(),
 		}
 	}
 }
 
-impl Display for Token {
+impl From<OpStackToken> for OutToken {
+	fn from(token: OpStackToken) -> Self {
+		match token {
+			OpStackToken::Op(op) => Self::Op(op),
+			OpStackToken::Paren(_) => unreachable!(),
+		}
+	}
+}
+
+impl From<OutToken> for String {
+	fn from(token: OutToken) -> Self {
+		match token {
+			OutToken::Num(n) => n.to_string(),
+			OutToken::Op(op) => op.to_string(),
+		}
+	}
+}
+
+impl Display for InToken {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Num(n) => n.fmt(f),
@@ -118,19 +147,31 @@ impl From<InvalidToken> for ResolveError {
 	}
 }
 
-impl From<Operator> for Token {
+impl From<Operator> for InToken {
 	fn from(op: Operator) -> Self {
 		Self::Op(op)
 	}
 }
 
-impl From<Paren> for Token {
+impl From<Operator> for OpStackToken {
+	fn from(op: Operator) -> Self {
+		Self::Op(op)
+	}
+}
+
+impl From<Paren> for InToken {
 	fn from(paren: Paren) -> Self {
 		Self::Paren(paren)
 	}
 }
 
-impl TryFrom<char> for Token {
+impl From<Paren> for OpStackToken {
+	fn from(paren: Paren) -> Self {
+		Self::Paren(paren)
+	}
+}
+
+impl TryFrom<char> for InToken {
 	type Error = InvalidToken;
 
 	fn try_from(string: char) -> Result<Self, Self::Error> {
@@ -152,23 +193,23 @@ impl TryFrom<char> for Token {
 }
 
 fn pop_until_left_paren(
-	output: &mut Vec<Token>,
-	ops: &mut Vec<Token>,
+	output: &mut Vec<OutToken>,
+	ops: &mut Vec<OpStackToken>,
 ) -> Result<(), LeftParenNotFound> {
 	while let Some(op) = ops.pop() {
-		if matches!(op, Token::Paren(Paren::Left)) {
+		if matches!(op, OpStackToken::Paren(Paren::Left)) {
 			return Ok(());
 		}
 
-		output.push(op);
+		output.push(op.into());
 	}
 
 	Err(LeftParenNotFound)
 }
 
-fn handle_operation_parsing(op: Operator, output: &mut Vec<Token>, ops: &mut Vec<Token>) {
+fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
 	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
-		output.push(ops.pop().unwrap());
+		output.push(ops.pop().unwrap().into());
 	}
 
 	ops.push(op.into())
@@ -188,20 +229,23 @@ fn handle_operation_evaluation(
 }
 
 // TODO Make this work for multi digit numbers.
-fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
-	let mut output: Vec<Token> = Vec::new();
-	let mut ops: Vec<Token> = Vec::new();
+fn parse_into_tokens(expr: &str) -> Result<Vec<OutToken>, ResolveError> {
+	let mut output: Vec<OutToken> = Vec::new();
+	let mut ops: Vec<OpStackToken> = Vec::new();
+
 	let tokens = expr
 		.chars()
-		.map(Token::try_from)
-		.collect::<Result<Vec<Token>, _>>()?;
+		.map(InToken::try_from)
+		.collect::<Result<Vec<InToken>, _>>()?;
 
 	for token in tokens.into_iter() {
 		match token {
-			Token::Num(_) => output.push(token),
-			Token::Paren(Paren::Left) => ops.push(token),
-			Token::Paren(Paren::Right) => pop_until_left_paren(&mut output, &mut ops)?,
-			Token::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
+			InToken::Num(n) => output.push(OutToken::Num(n)),
+			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
+			InToken::Paren(paren) => match paren {
+				Paren::Left => ops.push(paren.into()),
+				Paren::Right => pop_until_left_paren(&mut output, &mut ops)?,
+			},
 		}
 	}
 
@@ -214,8 +258,8 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<Token>, ResolveError> {
 
 pub fn parse(expr: &str) -> Result<String, ResolveError> {
 	Ok(parse_into_tokens(expr)?
-		.iter()
-		.map(Token::to_string)
+		.into_iter()
+		.map(String::from)
 		.collect())
 }
 
@@ -225,9 +269,8 @@ pub fn eval(expr: &str) -> Result<i32, ResolveError> {
 
 	for token in tokens.into_iter() {
 		match token {
-			Token::Num(n) => numbers.push_front(n),
-			Token::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
-			_ => unreachable!(),
+			OutToken::Num(n) => numbers.push_front(n),
+			OutToken::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
 		}
 	}
 
