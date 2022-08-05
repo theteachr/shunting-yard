@@ -84,11 +84,13 @@ impl OpStackToken {
 	}
 }
 
-impl From<OpStackToken> for OutToken {
-	fn from(token: OpStackToken) -> Self {
+impl TryFrom<OpStackToken> for OutToken {
+	type Error = UnbalancedParen;
+
+	fn try_from(token: OpStackToken) -> Result<Self, Self::Error> {
 		match token {
-			OpStackToken::Op(op) => Self::Op(op),
-			OpStackToken::Paren(_) => unreachable!(),
+			OpStackToken::Op(op) => Ok(Self::Op(op)),
+			OpStackToken::Paren(p) => Err(UnbalancedParen(p)),
 		}
 	}
 }
@@ -115,7 +117,7 @@ impl Display for InToken {
 #[derive(Debug)]
 pub enum ResolveError {
 	InvalidToken(char),
-	LeftParenNotFound,
+	UnbalancedParen(Paren),
 	NotEnoughOperands,
 	NoValue,
 }
@@ -124,10 +126,10 @@ pub enum ResolveError {
 pub struct InvalidToken(char);
 
 #[derive(Debug)]
-struct LeftParenNotFound;
+pub struct UnbalancedParen(Paren);
 
 #[derive(Debug)]
-struct NotEnoughOperands;
+pub struct NotEnoughOperands;
 
 impl From<NotEnoughOperands> for ResolveError {
 	fn from(_: NotEnoughOperands) -> Self {
@@ -135,9 +137,9 @@ impl From<NotEnoughOperands> for ResolveError {
 	}
 }
 
-impl From<LeftParenNotFound> for ResolveError {
-	fn from(_: LeftParenNotFound) -> Self {
-		Self::LeftParenNotFound
+impl From<UnbalancedParen> for ResolveError {
+	fn from(unbalanced_paren: UnbalancedParen) -> Self {
+		Self::UnbalancedParen(unbalanced_paren.0)
 	}
 }
 
@@ -182,12 +184,10 @@ impl TryFrom<char> for InToken {
 			'/' => Operator::Div.into(),
 			'(' => Paren::Left.into(),
 			')' => Paren::Right.into(),
-			c => {
-				return c
-					.to_digit(10)
-					.map(|digit| Self::Num(digit as i32))
-					.ok_or(InvalidToken(c));
-			}
+			c => c
+				.to_digit(10)
+				.map(|digit| Self::Num(digit as i32))
+				.ok_or(InvalidToken(c))?,
 		})
 	}
 }
@@ -195,21 +195,21 @@ impl TryFrom<char> for InToken {
 fn pop_until_left_paren(
 	output: &mut Vec<OutToken>,
 	ops: &mut Vec<OpStackToken>,
-) -> Result<(), LeftParenNotFound> {
+) -> Result<(), UnbalancedParen> {
 	while let Some(op) = ops.pop() {
 		if matches!(op, OpStackToken::Paren(Paren::Left)) {
 			return Ok(());
 		}
 
-		output.push(op.into());
+		output.push(op.try_into()?);
 	}
 
-	Err(LeftParenNotFound)
+	Err(UnbalancedParen(Paren::Right))
 }
 
 fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
 	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
-		output.push(ops.pop().unwrap().into());
+		output.push(ops.pop().unwrap().try_into().unwrap());
 	}
 
 	ops.push(op.into())
@@ -232,8 +232,8 @@ fn handle_operation_evaluation(
 
 // TODO Make this work for multi digit numbers.
 fn parse_into_tokens(expr: &str) -> Result<Vec<OutToken>, ResolveError> {
-	let mut output: Vec<OutToken> = Vec::new();
-	let mut ops: Vec<OpStackToken> = Vec::new();
+	let mut output = Vec::new();
+	let mut ops = Vec::new();
 
 	let tokens = expr
 		.chars()
@@ -252,7 +252,7 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<OutToken>, ResolveError> {
 	}
 
 	while let Some(op) = ops.pop() {
-		output.push(op.into())
+		output.push(op.try_into()?)
 	}
 
 	Ok(output)
@@ -365,9 +365,16 @@ mod tests {
 		assert!(matches!(parse("1+s"), Err(ResolveError::InvalidToken('s'))));
 		assert!(matches!(
 			parse("1+2-8)"),
-			Err(ResolveError::LeftParenNotFound)
+			Err(ResolveError::UnbalancedParen(Paren::Right))
 		));
-		assert!(matches!(parse(")))"), Err(ResolveError::LeftParenNotFound)));
+		assert!(matches!(
+			parse("(1+2-8"),
+			Err(ResolveError::UnbalancedParen(Paren::Left))
+		));
+		assert!(matches!(
+			parse(")))"),
+			Err(ResolveError::UnbalancedParen(Paren::Right))
+		));
 		assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
 		assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
 		assert_eq!(parse("(0)").unwrap(), "0");
@@ -383,8 +390,12 @@ mod tests {
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 		assert!(matches!(eval("expr"), Err(ResolveError::InvalidToken('e'))));
-		assert!(matches!(eval("))"), Err(ResolveError::LeftParenNotFound)));
+		assert!(matches!(
+			eval("))"),
+			Err(ResolveError::UnbalancedParen(Paren::Right))
+		));
 		assert!(matches!(eval("(())"), Err(ResolveError::NoValue)));
 		assert!(matches!(eval(""), Err(ResolveError::NoValue)));
+		assert!(matches!(eval("("), Err(ResolveError::UnbalancedParen(Paren::Left))));
 	}
 }
