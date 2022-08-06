@@ -205,9 +205,10 @@ fn pop_until_left_paren(
 fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
 	// While the top of the operator stack has a higher precedence than `op`,
 	// pop it off and push it to the output queue.
-	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
-		let top = ops.pop().and_then(|op| op.try_into().ok()).unwrap();
-		output.push(top);
+	while ops.last().filter(|&top| top.precedes(op)).is_some() {
+		if let Some(OpStackToken::Op(top)) = ops.pop() {
+			output.push(OutToken::Op(top));
+		}
 	}
 
 	ops.push(op.into())
