@@ -67,7 +67,7 @@ pub enum InToken {
 #[derive(Debug)]
 pub enum OpStackToken {
 	Op(Operator),
-	Paren(Paren), // FIXME Should only be left paren
+	LeftParen,
 }
 
 #[derive(Debug)]
@@ -79,8 +79,7 @@ pub enum OutToken {
 impl OpStackToken {
 	fn precedes(&self, rhs: Operator) -> bool {
 		match self {
-			Self::Paren(Paren::Right) => true,
-			Self::Paren(Paren::Left) => false,
+			Self::LeftParen => false,
 			Self::Op(op) => op.precedes(rhs),
 		}
 	}
@@ -92,7 +91,7 @@ impl TryFrom<OpStackToken> for OutToken {
 	fn try_from(token: OpStackToken) -> Result<Self, Self::Error> {
 		match token {
 			OpStackToken::Op(op) => Ok(Self::Op(op)),
-			OpStackToken::Paren(p) => Err(UnbalancedParen(p)),
+			OpStackToken::LeftParen => Err(UnbalancedParen(Paren::Left)),
 		}
 	}
 }
@@ -169,12 +168,6 @@ impl From<Paren> for InToken {
 	}
 }
 
-impl From<Paren> for OpStackToken {
-	fn from(paren: Paren) -> Self {
-		Self::Paren(paren)
-	}
-}
-
 impl TryFrom<char> for InToken {
 	type Error = InvalidToken;
 
@@ -199,7 +192,7 @@ fn pop_until_left_paren(
 	ops: &mut Vec<OpStackToken>,
 ) -> Result<(), UnbalancedParen> {
 	while let Some(op) = ops.pop() {
-		if matches!(op, OpStackToken::Paren(Paren::Left)) {
+		if matches!(op, OpStackToken::LeftParen) {
 			return Ok(());
 		}
 
@@ -248,7 +241,7 @@ fn parse_into_tokens(expr: &str) -> Result<Vec<OutToken>, ResolveError> {
 			InToken::Num(n) => output.push(OutToken::Num(n)),
 			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
 			InToken::Paren(paren) => match paren {
-				Paren::Left => ops.push(paren.into()),
+				Paren::Left => ops.push(OpStackToken::LeftParen),
 				Paren::Right => pop_until_left_paren(&mut output, &mut ops)?,
 			},
 		}
