@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
+// TODO Add 'em comments.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
 	Add = 1,
@@ -25,7 +27,7 @@ impl Display for Operator {
 
 impl Operator {
 	fn precedes(self, rhs: Self) -> bool {
-		((self as u8) % 6) >= ((rhs as u8) % 6) // FIXME Magic Numbers
+		((self as u8) % 6) >= ((rhs as u8) % 6) // FIXME Rid of magic numbers
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
@@ -209,7 +211,8 @@ fn pop_until_left_paren(
 
 fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
 	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
-		output.push(ops.pop().unwrap().try_into().unwrap());
+		let op = ops.pop().and_then(|op| op.try_into().ok()).unwrap();
+		output.push(op);
 	}
 
 	ops.push(op.into())
@@ -396,6 +399,9 @@ mod tests {
 		));
 		assert!(matches!(eval("(())"), Err(ResolveError::NoValue)));
 		assert!(matches!(eval(""), Err(ResolveError::NoValue)));
-		assert!(matches!(eval("("), Err(ResolveError::UnbalancedParen(Paren::Left))));
+		assert!(matches!(
+			eval("("),
+			Err(ResolveError::UnbalancedParen(Paren::Left))
+		));
 	}
 }
