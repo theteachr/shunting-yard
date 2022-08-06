@@ -206,8 +206,8 @@ fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut 
 	// While the top of the operator stack has a higher precedence than `op`,
 	// pop it off and push it to the output queue.
 	while ops.last().map(|top| top.precedes(op)).unwrap_or(false) {
-		let op = ops.pop().and_then(|op| op.try_into().ok()).unwrap();
-		output.push(op);
+		let top = ops.pop().and_then(|op| op.try_into().ok()).unwrap();
+		output.push(top);
 	}
 
 	ops.push(op.into())
