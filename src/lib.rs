@@ -65,7 +65,7 @@ pub enum InToken {
 #[derive(Debug)]
 pub enum OpStackToken {
 	Op(Operator),
-	Paren(Paren),
+	Paren(Paren), // FIXME Should only be left paren
 }
 
 #[derive(Debug)]
