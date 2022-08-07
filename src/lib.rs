@@ -396,36 +396,73 @@ mod tests {
 
 	// TODO Break tests
 	// TODO Test multi digit number parsing
+	// TODO When testing `parse`, don't convert to String
 
 	#[test]
-	fn parsing_works() {
-		assert_matches!(
-			parse(String::from("1+s")),
-			Err(ResolveError::InvalidToken('s'))
-		);
-		assert_matches!(
-			parse(String::from("1+2-8)")),
-			Err(ResolveError::UnbalancedParen(Paren::Right))
-		);
-		assert_matches!(
-			parse(String::from("(1+2-8")),
-			Err(ResolveError::UnbalancedParen(Paren::Left))
-		);
-		assert_matches!(
-			parse(String::from(")))")),
-			Err(ResolveError::UnbalancedParen(Paren::Right))
-		);
-		assert_eq!(
-			parse(String::from("1+2-(2+1)*2")).unwrap(),
-			String::from("12+21+2*-")
-		);
-		assert_eq!(
-			parse(String::from("2+(3*(8-4))")).unwrap(),
-			String::from("2384-*+")
-		);
-		assert_eq!(parse(String::from("(0)")).unwrap(), String::from("0"));
-		assert_eq!(parse(String::new()).unwrap(), String::from(""));
-		assert_eq!(parse(String::from("(())")).unwrap(), String::from(""));
+	fn parsing_invalid_expressions() {
+		use Paren::*;
+		use ResolveError::*;
+
+		macro_rules! gen_tests {
+            (
+                $($input:literal => $expected:pat,)+
+            ) => {
+                $(assert_matches!(
+                    parse_into_tokens(String::from($input)),
+                    Err($expected)
+                );)+
+            };
+        }
+
+		gen_tests! {
+			"1+s" => InvalidToken('s'),
+			"1+2-8)" => UnbalancedParen(Right),
+			"1 +2- 8)" => UnbalancedParen(Right),
+			")))" => UnbalancedParen(Right),
+		}
+	}
+
+	#[test]
+	fn parsing_valid_expressions() {
+		use Operator::*;
+		use OutToken::*;
+		use Paren::*;
+
+		macro_rules! gen_token {
+			( - ) => {
+				Op(Sub)
+			};
+			( + ) => {
+				Op(Add)
+			};
+			( * ) => {
+				Op(Mul)
+			};
+			( / ) => {
+				Op(Div)
+			};
+			( $number:literal ) => {
+				Num($number)
+			};
+		}
+
+		macro_rules! gen_tests {
+			(
+				$($input:literal => [$($variant:tt)*],)+
+			) => {
+                $(assert_matches!(
+                    parse_into_tokens(String::from($input)).as_deref(),
+                    Ok([$(gen_token!($variant)),*])
+                );)+
+            }
+		}
+
+		gen_tests! {
+			"12-(2+1)*2" => [12 2 1 + 2 * -],
+			"(0)" => [0],
+			"" => [],
+			"(())" => [],
+		}
 	}
 
 	#[test]
