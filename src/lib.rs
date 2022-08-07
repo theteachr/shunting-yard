@@ -123,7 +123,7 @@ pub enum ResolveError {
 	UnbalancedParen(Paren),
 	NotEnoughOperands,
 	NoValue,
-	LonerNumber,
+	LonerNumber(i32),
 }
 
 #[derive(Debug)]
@@ -307,10 +307,9 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	// There has to be only one element in `numbers`.
 	let result = numbers.pop_front().ok_or(ResolveError::NoValue);
 
-	match numbers.pop_front() {
-		None => result,
-		Some(_) => Err(ResolveError::LonerNumber),
-	}
+	numbers
+		.pop_front()
+		.map_or(result, |n| Err(ResolveError::LonerNumber(n)))
 }
 
 // 1+2-(2+1)*2
@@ -455,11 +454,17 @@ mod tests {
 
 	#[test]
 	fn spaced_single_digit_numbers() {
-		assert!(eval(String::from("112+(1 9)")).is_err());
+		assert_matches!(
+			eval(String::from("112+(1 9)")),
+			Err(ResolveError::InvalidToken(' '))
+		);
 	}
 
 	#[test]
 	fn no_operator() {
-		assert!(eval(String::from("112 (1+9)")).is_err());
+		assert_matches!(
+			eval(String::from("112(1+9)")),
+			Err(ResolveError::LonerNumber(112))
+		);
 	}
 }
