@@ -387,45 +387,68 @@ mod tests {
 		assert!(!Add.precedes(Div))
 	}
 
-	// #[test]
-	// fn parsing_works() {
-	// 	assert!(matches!(parse("1+s"), Err(ResolveError::InvalidToken('s'))));
-	// 	assert!(matches!(
-	// 		parse("1+2-8)"),
-	// 		Err(ResolveError::UnbalancedParen(Paren::Right))
-	// 	));
-	// 	assert!(matches!(
-	// 		parse("(1+2-8"),
-	// 		Err(ResolveError::UnbalancedParen(Paren::Left))
-	// 	));
-	// 	assert!(matches!(
-	// 		parse(")))"),
-	// 		Err(ResolveError::UnbalancedParen(Paren::Right))
-	// 	));
-	// 	assert_eq!(parse("1+2-(2+1)*2").unwrap(), "12+21+2*-");
-	// 	assert_eq!(parse("2+(3*(8-4))").unwrap(), "2384-*+");
-	// 	assert_eq!(parse("(0)").unwrap(), "0");
-	// 	assert_eq!(parse("").unwrap(), "");
-	// 	assert_eq!(parse("(())").unwrap(), "");
-	// }
+	// TODO Break tests
+	// TODO Test multi digit number parsing
 
-	// #[test]
-	// fn eval_works() {
-	// 	assert_eq!(eval("1+2-(2+1)*2").unwrap(), -3);
-	// 	assert_eq!(eval("2+(3*(8-4))").unwrap(), 14);
-	// 	assert_eq!(eval("0").unwrap(), 0);
-	// 	assert_eq!(eval("(0)").unwrap(), 0);
-	// 	assert_eq!(eval("(((0-1)))").unwrap(), -1);
-	// 	assert!(matches!(eval("expr"), Err(ResolveError::InvalidToken('e'))));
-	// 	assert!(matches!(
-	// 		eval("))"),
-	// 		Err(ResolveError::UnbalancedParen(Paren::Right))
-	// 	));
-	// 	assert!(matches!(eval("(())"), Err(ResolveError::NoValue)));
-	// 	assert!(matches!(eval(""), Err(ResolveError::NoValue)));
-	// 	assert!(matches!(
-	// 		eval("("),
-	// 		Err(ResolveError::UnbalancedParen(Paren::Left))
-	// // 	));
-	// }
+	#[test]
+	fn parsing_works() {
+		let invalid_token = String::from("s"); // FIXME
+
+		assert!(matches!(
+			parse(String::from("1+s")),
+			Err(ResolveError::InvalidToken(invalid_token))
+		));
+		assert!(matches!(
+			parse(String::from("1+2-8)")),
+			Err(ResolveError::UnbalancedParen(Paren::Right))
+		));
+		assert!(matches!(
+			parse(String::from("(1+2-8")),
+			Err(ResolveError::UnbalancedParen(Paren::Left))
+		));
+		assert!(matches!(
+			parse(String::from(")))")),
+			Err(ResolveError::UnbalancedParen(Paren::Right))
+		));
+		assert_eq!(
+			parse(String::from("1+2-(2+1)*2")).unwrap(),
+			String::from("12+21+2*-")
+		);
+		assert_eq!(
+			parse(String::from("2+(3*(8-4))")).unwrap(),
+			String::from("2384-*+")
+		);
+		assert_eq!(parse(String::from("(0)")).unwrap(), String::from("0"));
+		assert_eq!(parse(String::from("")).unwrap(), String::from(""));
+		assert_eq!(parse(String::from("(())")).unwrap(), String::from(""));
+	}
+
+	#[test]
+	fn eval_works() {
+		assert_eq!(eval(String::from("1+2-(2+1)*2")).unwrap(), -3);
+		assert_eq!(eval(String::from("2+(3*(8-4))")).unwrap(), 14);
+		assert_eq!(eval(String::from("0")).unwrap(), 0);
+		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
+		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
+
+		let invalid_token = String::from("e"); // FIXME
+
+		assert!(matches!(
+			eval(String::from("expr")),
+			Err(ResolveError::InvalidToken(invalid_token))
+		));
+		assert!(matches!(
+			eval(String::from("))")),
+			Err(ResolveError::UnbalancedParen(Paren::Right))
+		));
+		assert!(matches!(
+			eval(String::from("(())")),
+			Err(ResolveError::NoValue)
+		));
+		assert!(matches!(eval(String::from("")), Err(ResolveError::NoValue)));
+		assert!(matches!(
+			eval(String::from("(")),
+			Err(ResolveError::UnbalancedParen(Paren::Left))
+		));
+	}
 }
