@@ -409,7 +409,8 @@ mod tests {
             ) => {
                 $(assert_matches!(
                     parse_into_tokens(String::from($input)),
-                    Err($expected)
+                    Err($expected),
+                    "\n input: `{}`", $input
                 );)+
             };
         }
@@ -452,7 +453,8 @@ mod tests {
 			) => {
                 $(assert_matches!(
                     parse_into_tokens(String::from($input)).as_deref(),
-                    Ok([$(gen_token!($variant)),*])
+                    Ok([$(gen_token!($variant)),*]),
+                    "\n input: `{}`", $input
                 );)+
             }
 		}
