@@ -1,10 +1,15 @@
-use shunting_yard::{eval, parse_into_tokens};
+use shunting_yard::{eval, parse};
 
 fn main() {
-	let input: String = std::env::args().skip(1).take(1).collect();
+	let input_expr: String = std::env::args().skip(1).take(1).collect();
 
-	match parse_into_tokens(input.clone()).and_then(eval) {
-		Ok(result) => println!("{} = {}", input, result),
+	match parse(input_expr.clone()) {
+		Ok(postfix_expr) => println!("{} => {}", input_expr, postfix_expr),
+		Err(e) => eprintln!("{:?}", e),
+	}
+
+	match eval(input_expr.clone()) {
+		Ok(v) => println!("{} = {}", input_expr, v),
 		Err(e) => eprintln!("{:?}", e),
 	}
 }
