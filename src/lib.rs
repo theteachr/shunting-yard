@@ -231,11 +231,9 @@ fn handle_operation_evaluation(
 	Ok(())
 }
 
-fn group_numbers(mut expr: String) -> Vec<String> {
+fn group_numbers(expr: String) -> Vec<String> {
 	let mut current_num = Vec::new();
 	let mut new_tokens = Vec::new();
-
-	expr.retain(|c| !c.is_whitespace());
 
 	for c in expr.chars() {
 		if c.is_ascii_digit() {
@@ -306,13 +304,13 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 		}
 	}
 
-	let result = numbers.pop_front().ok_or(ResolveError::NoValue)?;
+	// There has to be only one element in `numbers`.
+	let result = numbers.pop_front().ok_or(ResolveError::NoValue);
 
-	if !numbers.is_empty() {
-		return Err(ResolveError::LonerNumber);
+	match numbers.pop_front() {
+		None => result,
+		Some(_) => Err(ResolveError::LonerNumber),
 	}
-
-	Ok(result)
 }
 
 // 1+2-(2+1)*2
