@@ -117,14 +117,14 @@ impl Display for InToken {
 
 #[derive(Debug)]
 pub enum ResolveError {
-	InvalidToken(char),
+	InvalidToken(String),
 	UnbalancedParen(Paren),
 	NotEnoughOperands,
 	NoValue,
 }
 
 #[derive(Debug)]
-pub struct InvalidToken(char);
+pub struct InvalidToken(String);
 
 #[derive(Debug)]
 pub struct UnbalancedParen(Paren);
@@ -182,7 +182,7 @@ impl TryFrom<String> for InToken {
 			s => s
 				.parse::<i32>()
 				.map(InToken::Num)
-				.map_err(|_| InvalidToken('X'))?,
+				.map_err(|_| InvalidToken(s.to_owned()))?,
 		})
 	}
 }
