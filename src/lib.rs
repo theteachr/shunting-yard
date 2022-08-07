@@ -192,11 +192,10 @@ fn pop_until_left_paren(
 	ops: &mut Vec<OpStackToken>,
 ) -> Result<(), UnbalancedParen> {
 	while let Some(op) = ops.pop() {
-		if let OpStackToken::LeftParen = op {
-			return Ok(());
+		match op {
+			OpStackToken::LeftParen => return Ok(()),
+			OpStackToken::Op(o) => output.push(OutToken::Op(o)),
 		}
-
-		output.push(op.try_into()?);
 	}
 
 	Err(UnbalancedParen(Paren::Right))
