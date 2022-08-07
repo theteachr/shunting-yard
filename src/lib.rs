@@ -1,3 +1,5 @@
+#![feature(assert_matches)]
+
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -337,6 +339,7 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::assert_matches::assert_matches;
 	use Operator::*;
 
 	#[test]
@@ -399,22 +402,22 @@ mod tests {
 
 	#[test]
 	fn parsing_works() {
-		assert!(matches!(
+		assert_matches!(
 			parse(String::from("1+s")),
 			Err(ResolveError::InvalidToken('s'))
-		));
-		assert!(matches!(
+		);
+		assert_matches!(
 			parse(String::from("1+2-8)")),
 			Err(ResolveError::UnbalancedParen(Paren::Right))
-		));
-		assert!(matches!(
+		);
+		assert_matches!(
 			parse(String::from("(1+2-8")),
 			Err(ResolveError::UnbalancedParen(Paren::Left))
-		));
-		assert!(matches!(
+		);
+		assert_matches!(
 			parse(String::from(")))")),
 			Err(ResolveError::UnbalancedParen(Paren::Right))
-		));
+		);
 		assert_eq!(
 			parse(String::from("1+2-(2+1)*2")).unwrap(),
 			String::from("12+21+2*-")
@@ -436,23 +439,25 @@ mod tests {
 		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
 		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
 
-		assert!(matches!(
+		assert_matches!(
 			eval(String::from("expr")),
 			Err(ResolveError::InvalidToken('e'))
-		));
-		assert!(matches!(
+		);
+		assert_matches!(
 			eval(String::from("))")),
 			Err(ResolveError::UnbalancedParen(Paren::Right))
-		));
-		assert!(matches!(
-			eval(String::from("(())")),
-			Err(ResolveError::NoValue)
-		));
-		assert!(matches!(eval(String::from("")), Err(ResolveError::NoValue)));
-		assert!(matches!(
+		);
+		assert_matches!(eval(String::from("(())")), Err(ResolveError::NoValue));
+		assert_matches!(eval(String::from("")), Err(ResolveError::NoValue));
+		assert_matches!(
 			eval(String::from("(")),
 			Err(ResolveError::UnbalancedParen(Paren::Left))
-		));
+		);
+	}
+
+	#[test]
+	fn spaced_single_digit_numbers() {
+		assert!(eval(String::from("112+(1 9)")).is_err());
 	}
 
 	#[test]
