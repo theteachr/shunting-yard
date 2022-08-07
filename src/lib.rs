@@ -297,7 +297,7 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
-	for token in tokens.into_iter() {
+	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
 			OutToken::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
