@@ -8,10 +8,10 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
-	Add = 1,
-	Sub = 7,
-	Mul = 2,
-	Div = 8,
+	Add = 0b0_0,
+	Sub = 0b0_1,
+	Mul = 0b1_0,
+	Div = 0b1_1,
 }
 
 impl Display for Operator {
@@ -29,7 +29,7 @@ impl Display for Operator {
 
 impl Operator {
 	fn precedes(self, rhs: Self) -> bool {
-		((self as u8) % 6) >= ((rhs as u8) % 6) // FIXME Rid of magic numbers
+		(self as u8 >> 1) >= (rhs as u8 >> 1)
 	}
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
