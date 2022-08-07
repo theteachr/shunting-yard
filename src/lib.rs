@@ -261,7 +261,7 @@ fn group_numbers(expr: String) -> Vec<String> {
 	new_tokens
 }
 
-pub fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
+fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 	let mut output = Vec::new();
 	let mut ops = Vec::new();
 
@@ -297,13 +297,15 @@ pub fn parse(expr: String) -> Result<String, ResolveError> {
 	Ok(parse_into_tokens(expr)?
 		.into_iter()
 		.map(String::from)
-		.collect())
+		.collect::<Vec<String>>()
+		.join(" "))
 }
 
-pub fn eval(postfixed_tokens: Vec<OutToken>) -> Result<i32, ResolveError> {
+pub fn eval(expr: String) -> Result<i32, ResolveError> {
+	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
-	for token in postfixed_tokens {
+	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
 			OutToken::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
@@ -430,7 +432,6 @@ mod tests {
 	fn parsing_valid_expressions() {
 		use Operator::*;
 		use OutToken::*;
-		use Paren::*;
 
 		macro_rules! gen_token {
 			( - ) => {
