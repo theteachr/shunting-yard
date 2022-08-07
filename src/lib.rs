@@ -121,6 +121,7 @@ pub enum ResolveError {
 	UnbalancedParen(Paren),
 	NotEnoughOperands,
 	NoValue,
+	LonerNumber,
 }
 
 #[derive(Debug)]
@@ -303,7 +304,13 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 		}
 	}
 
-	numbers.pop_front().ok_or(ResolveError::NoValue)
+	let result = numbers.pop_front().ok_or(ResolveError::NoValue)?;
+
+	if !numbers.is_empty() {
+		return Err(ResolveError::LonerNumber);
+	}
+
+	Ok(result)
 }
 
 // 1+2-(2+1)*2
@@ -446,5 +453,10 @@ mod tests {
 			eval(String::from("(")),
 			Err(ResolveError::UnbalancedParen(Paren::Left))
 		));
+	}
+
+	#[test]
+	fn no_operator() {
+		assert!(eval(String::from("112 (1+9)")).is_err());
 	}
 }
