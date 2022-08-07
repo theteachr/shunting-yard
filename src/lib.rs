@@ -117,14 +117,14 @@ impl Display for InToken {
 
 #[derive(Debug)]
 pub enum ResolveError {
-	InvalidToken(String),
+	InvalidToken(char),
 	UnbalancedParen(Paren),
 	NotEnoughOperands,
 	NoValue,
 }
 
 #[derive(Debug)]
-pub struct InvalidToken(String);
+pub struct InvalidToken(char);
 
 #[derive(Debug)]
 pub struct UnbalancedParen(Paren);
@@ -182,7 +182,7 @@ impl TryFrom<String> for InToken {
 			s => s
 				.parse::<i32>()
 				.map(InToken::Num)
-				.map_err(|_| InvalidToken(s.to_owned()))?,
+				.map_err(|_| InvalidToken(s.chars().next().unwrap()))?,
 		})
 	}
 }
@@ -392,11 +392,9 @@ mod tests {
 
 	#[test]
 	fn parsing_works() {
-		let invalid_token = String::from("s"); // FIXME
-
 		assert!(matches!(
 			parse(String::from("1+s")),
-			Err(ResolveError::InvalidToken(invalid_token))
+			Err(ResolveError::InvalidToken('s'))
 		));
 		assert!(matches!(
 			parse(String::from("1+2-8)")),
@@ -419,7 +417,7 @@ mod tests {
 			String::from("2384-*+")
 		);
 		assert_eq!(parse(String::from("(0)")).unwrap(), String::from("0"));
-		assert_eq!(parse(String::from("")).unwrap(), String::from(""));
+		assert_eq!(parse(String::new()).unwrap(), String::from(""));
 		assert_eq!(parse(String::from("(())")).unwrap(), String::from(""));
 	}
 
@@ -431,11 +429,9 @@ mod tests {
 		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
 		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
 
-		let invalid_token = String::from("e"); // FIXME
-
 		assert!(matches!(
 			eval(String::from("expr")),
-			Err(ResolveError::InvalidToken(invalid_token))
+			Err(ResolveError::InvalidToken('e'))
 		));
 		assert!(matches!(
 			eval(String::from("))")),
