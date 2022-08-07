@@ -396,7 +396,6 @@ mod tests {
 
 	// TODO Break tests
 	// TODO Test multi digit number parsing
-	// TODO When testing `parse`, don't convert to String
 
 	#[test]
 	fn parsing_invalid_expressions() {
@@ -404,16 +403,14 @@ mod tests {
 		use ResolveError::*;
 
 		macro_rules! gen_tests {
-            (
-                $($input:literal => $expected:pat,)+
-            ) => {
-                $(assert_matches!(
-                    parse_into_tokens(String::from($input)),
-                    Err($expected),
-                    "\n input: `{}`", $input
-                );)+
-            };
-        }
+			($($input:literal => $expected:pat,)+) => {
+				$(assert_matches!(
+					parse_into_tokens(String::from($input)),
+					Err($expected),
+					"\n input: `{}`", $input
+				);)+
+			};
+		}
 
 		gen_tests! {
 			"1+s" => InvalidToken('s'),
@@ -448,15 +445,13 @@ mod tests {
 		}
 
 		macro_rules! gen_tests {
-			(
-				$($input:literal => [$($variant:tt)*],)+
-			) => {
-                $(assert_matches!(
-                    parse_into_tokens(String::from($input)).as_deref(),
-                    Ok([$(gen_token!($variant)),*]),
-                    "\n input: `{}`", $input
-                );)+
-            }
+			($($input:literal => [$($variant:tt)*],)+) => {
+				$(assert_matches!(
+					parse_into_tokens(String::from($input)).as_deref(),
+					Ok([$(gen_token!($variant)),*]),
+					"\n input: `{}`", $input
+				);)+
+			}
 		}
 
 		gen_tests! {
