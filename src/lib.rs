@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 // TODO Add 'em comments.
+// TODO Handle negative numbers and all the other jazz with a unary minus.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
@@ -246,6 +247,10 @@ fn group_numbers(expr: String) -> Vec<String> {
 			current_num.clear();
 		}
 
+		if c.is_whitespace() {
+			continue;
+		}
+
 		new_tokens.push(c.to_string());
 	}
 
@@ -256,7 +261,7 @@ fn group_numbers(expr: String) -> Vec<String> {
 	new_tokens
 }
 
-fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
+pub fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 	let mut output = Vec::new();
 	let mut ops = Vec::new();
 
@@ -268,7 +273,7 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 		.map(InToken::try_from)
 		.collect::<Result<Vec<InToken>, _>>()?;
 
-	for token in tokens.into_iter() {
+	for token in tokens {
 		match token {
 			InToken::Num(n) => output.push(OutToken::Num(n)),
 			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
@@ -279,6 +284,8 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 		}
 	}
 
+	// While there are operators on the operator stack, pop them off and push them into the output
+	// queue.
 	while let Some(op) = ops.pop() {
 		output.push(op.try_into()?)
 	}
@@ -293,11 +300,10 @@ pub fn parse(expr: String) -> Result<String, ResolveError> {
 		.collect())
 }
 
-pub fn eval(expr: String) -> Result<i32, ResolveError> {
-	let tokens = parse_into_tokens(expr)?;
+pub fn eval(postfixed_tokens: Vec<OutToken>) -> Result<i32, ResolveError> {
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
-	for token in tokens {
+	for token in postfixed_tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
 			OutToken::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
@@ -407,7 +413,7 @@ mod tests {
 				$(assert_matches!(
 					parse_into_tokens(String::from($input)),
 					Err($expected),
-					"\n input: `{}`", $input
+					"input = `{}`", $input
 				);)+
 			};
 		}
@@ -449,7 +455,7 @@ mod tests {
 				$(assert_matches!(
 					parse_into_tokens(String::from($input)).as_deref(),
 					Ok([$(gen_token!($variant)),*]),
-					"\n input: `{}`", $input
+					"input = `{}`", $input
 				);)+
 			}
 		}
@@ -459,6 +465,7 @@ mod tests {
 			"(0)" => [0],
 			"" => [],
 			"(())" => [],
+			"1 + 1" => [1 1 +],
 		}
 	}
 
@@ -488,10 +495,7 @@ mod tests {
 
 	#[test]
 	fn spaced_single_digit_numbers() {
-		assert_matches!(
-			eval(String::from("112+(1 9)")),
-			Err(ResolveError::InvalidToken(' '))
-		);
+		assert!(eval(String::from("112+(1 9)")).is_err());
 	}
 
 	#[test]
