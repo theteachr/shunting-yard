@@ -9,10 +9,10 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
-	Add = 0b0_0,
-	Sub = 0b0_1,
-	Mul = 0b1_0,
-	Div = 0b1_1,
+	Add = 0b00,
+	Sub = 0b01,
+	Mul = 0b10,
+	Div = 0b11,
 }
 
 impl Display for Operator {
@@ -261,6 +261,9 @@ fn group_numbers(expr: String) -> Vec<String> {
 	new_tokens
 }
 
+/// Converts the infix expression into a stream of tokens in the postfix notation.
+///
+/// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
 fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 	let mut output = Vec::new();
 	let mut ops = Vec::new();
