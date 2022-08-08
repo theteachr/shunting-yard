@@ -220,16 +220,12 @@ fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut 
 fn handle_operation_evaluation(
 	op: Operator,
 	numbers: &mut VecDeque<i32>,
-) -> Result<(), NotEnoughOperands> {
-	let result = numbers
+) -> Result<i32, NotEnoughOperands> {
+	numbers
 		.pop_front()
 		.zip(numbers.pop_front())
 		.map(|(rop, lop)| op.perform(lop, rop))
-		.ok_or(NotEnoughOperands)?;
-
-	numbers.push_front(result);
-
-	Ok(())
+		.ok_or(NotEnoughOperands)
 }
 
 fn group_numbers(expr: String) -> Vec<String> {
@@ -311,7 +307,10 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
-			OutToken::Op(op) => handle_operation_evaluation(op, &mut numbers)?,
+			OutToken::Op(op) => {
+				let val = handle_operation_evaluation(op, &mut numbers)?;
+				numbers.push_front(val);
+			}
 		}
 	}
 
