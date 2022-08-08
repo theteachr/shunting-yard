@@ -436,30 +436,32 @@ mod tests {
 		use OutToken::*;
 
 		macro_rules! gen_token {
-			( - ) => {
+			(-) => {
 				Op(Sub)
 			};
-			( + ) => {
+			(+) => {
 				Op(Add)
 			};
-			( * ) => {
+			(*) => {
 				Op(Mul)
 			};
-			( / ) => {
+			(/) => {
 				Op(Div)
 			};
-			( $number:literal ) => {
+			($number:literal) => {
 				Num($number)
 			};
 		}
 
 		macro_rules! gen_tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
-				$(assert_matches!(
-					parse_into_tokens(String::from($input)).as_deref(),
-					Ok([$(gen_token!($variant)),*]),
-					"input = `{}`", $input
-				);)+
+				$(
+					assert_matches!(
+						parse_into_tokens(String::from($input)).as_deref(),
+						Ok([$(gen_token!($variant)),*]),
+						"input = `{}`", $input
+					);
+				)+
 			}
 		}
 
