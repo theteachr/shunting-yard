@@ -43,7 +43,7 @@ impl Operator {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Paren {
 	Left,
 	Right,
@@ -60,20 +60,20 @@ impl Display for Paren {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum InToken {
 	Num(i32),
 	Op(Operator),
 	Paren(Paren),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum OpStackToken {
 	Op(Operator),
 	LeftParen,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum OutToken {
 	Num(i32),
 	Op(Operator),
@@ -118,7 +118,7 @@ impl Display for InToken {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ResolveError {
 	InvalidToken(char),
 	UnbalancedParen(Paren),
@@ -127,13 +127,13 @@ pub enum ResolveError {
 	LonerNumber(i32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvalidToken(char);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct UnbalancedParen(Paren);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct NotEnoughOperands;
 
 impl From<NotEnoughOperands> for ResolveError {
@@ -456,9 +456,9 @@ mod tests {
 		macro_rules! gen_tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
 				$(
-					assert_matches!(
-						parse_into_tokens(String::from($input)).as_deref(),
-						Ok([$(gen_token!($variant)),*]),
+					assert_eq!(
+						parse_into_tokens(String::from($input)),
+						Ok(vec![$(gen_token!($variant)),*]),
 						"input = `{}`", $input
 					);
 				)+
