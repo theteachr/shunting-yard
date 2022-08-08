@@ -35,10 +35,10 @@ impl Operator {
 
 	fn perform(&self, a: i32, b: i32) -> i32 {
 		match self {
-			Operator::Add => a + b,
-			Operator::Sub => a - b,
-			Operator::Mul => a * b,
-			Operator::Div => a / b,
+			Self::Add => a + b,
+			Self::Sub => a - b,
+			Self::Mul => a * b,
+			Self::Div => a / b,
 		}
 	}
 }
