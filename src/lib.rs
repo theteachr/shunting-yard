@@ -288,6 +288,7 @@ fn handle_operation_evaluation(
 }
 
 // Worst fn in this code base
+// TODO Tokenize in one pass (just store the spans?)
 fn group_numbers(expr: String) -> Vec<String> {
 	let mut current_num = Vec::new();
 	let mut new_tokens = Vec::new();
