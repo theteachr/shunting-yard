@@ -3,26 +3,65 @@
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
+use std::iter::Iterator;
 
 // TODO Add 'em comments.
 // TODO Handle negative numbers and all the other jazz with a unary minus.
 
+#[derive(Debug, PartialEq, Eq)]
 struct Stack<T>(Vec<T>);
 
 impl<T> Stack<T> {
-	fn new() {}
+	fn new() -> Self {
+		Self(Vec::new())
+	}
 
-	/// Takes a single arg predicate. Passes the top as its arg. Returns the popped element if the predicate is satisfied.
-	///
-	/// # Usage
-	///
-	/// ```
-	/// ops.pop_when(|top| top.precedes(op))
-	/// ```
-	fn pop_when() {}
+	fn pop(&mut self) -> Option<T> {
+		self.0.pop()
+	}
 
-	fn pop() {}
-	fn push() {}
+	fn last(&mut self) -> Option<&T> {
+		self.0.last()
+	}
+
+	fn push(&mut self, item: T) {
+		self.0.push(item);
+	}
+}
+
+impl<T> From<Stack<T>> for Vec<T> {
+	fn from(stack: Stack<T>) -> Self {
+		stack.0
+	}
+}
+
+trait OpStack {
+	fn pop_op_when<P>(&mut self, p: P) -> Option<Operator>
+	where
+		P: FnOnce(&OpStackToken) -> bool;
+}
+
+impl<T> Iterator for Stack<T> {
+	type Item = T;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		self.0.pop()
+	}
+}
+
+impl OpStack for Stack<OpStackToken> {
+	fn pop_op_when<P>(&mut self, p: P) -> Option<Operator>
+	where
+		P: FnOnce(&OpStackToken) -> bool,
+	{
+		if self.last().filter(|&top| p(top)).is_some() {
+			if let Some(OpStackToken::Op(op)) = self.pop() {
+				return Some(op);
+			}
+		}
+
+		None
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -211,7 +250,7 @@ impl TryFrom<String> for InToken {
 
 fn pop_until_left_paren(
 	output: &mut Vec<OutToken>,
-	ops: &mut Vec<OpStackToken>,
+	ops: &mut Stack<OpStackToken>,
 ) -> Result<(), UnbalancedParen> {
 	while let Some(op) = ops.pop() {
 		match op {
@@ -223,13 +262,15 @@ fn pop_until_left_paren(
 	Err(UnbalancedParen(Paren::Right))
 }
 
-fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
+fn handle_operation_parsing(
+	op: Operator,
+	output: &mut Vec<OutToken>,
+	ops: &mut Stack<OpStackToken>,
+) {
 	// While the top of the operator stack has a higher precedence than `op`,
 	// pop it off and push it to the output queue.
-	while ops.last().filter(|&top| top.precedes(op)).is_some() {
-		if let Some(OpStackToken::Op(top)) = ops.pop() {
-			output.push(OutToken::Op(top));
-		}
+	while let Some(top) = ops.pop_op_when(|top| top.precedes(op)) {
+		output.push(OutToken::Op(top));
 	}
 
 	ops.push(op.into())
@@ -246,6 +287,7 @@ fn handle_operation_evaluation(
 		.ok_or(NotEnoughOperands)
 }
 
+// Worst fn in this code base
 fn group_numbers(expr: String) -> Vec<String> {
 	let mut current_num = Vec::new();
 	let mut new_tokens = Vec::new();
@@ -272,6 +314,8 @@ fn group_numbers(expr: String) -> Vec<String> {
 		new_tokens.push(current_num.iter().collect::<String>());
 	}
 
+	dbg!(&new_tokens);
+
 	new_tokens
 }
 
@@ -280,7 +324,7 @@ fn group_numbers(expr: String) -> Vec<String> {
 /// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
 fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 	let mut output = Vec::new();
-	let mut ops = Vec::new();
+	let mut ops = Stack::new();
 
 	// 23  + 5 => ["23", "+", "5"]
 	// 23+58546 => ["23", "+", "58546"]
@@ -303,9 +347,11 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 
 	// While there are operators on the operator stack, pop them off and push them into the output
 	// queue.
-	while let Some(op) = ops.pop() {
-		output.push(op.try_into()?)
-	}
+	output.append(
+		&mut ops.into_iter()
+			.map(OutToken::try_from)
+			.collect::<Result<Vec<OutToken>, _>>()?,
+	);
 
 	Ok(output)
 }
@@ -322,11 +368,14 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
+	dbg!(&tokens);
+
 	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
 			OutToken::Op(op) => {
 				let val = handle_operation_evaluation(op, &mut numbers)?;
+				dbg!(val);
 				numbers.push_front(val);
 			}
 		}
@@ -475,7 +524,7 @@ mod tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
 				$(
 					assert_eq!(
-						parse_into_tokens(String::from($input)),
+						parse_into_tokens(String::from($input)).map(Vec::from),
 						Ok(vec![$(gen_token!($variant)),*]),
 						"input = `{}`", $input
 					);
