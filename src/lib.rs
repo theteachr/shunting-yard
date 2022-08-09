@@ -7,6 +7,24 @@ use std::fmt::Display;
 // TODO Add 'em comments.
 // TODO Handle negative numbers and all the other jazz with a unary minus.
 
+struct Stack<T>(Vec<T>);
+
+impl<T> Stack<T> {
+	fn new() {}
+
+	/// Takes a single arg predicate. Passes the top as its arg. Returns the popped element if the predicate is satisfied.
+	///
+	/// # Usage
+	///
+	/// ```
+	/// ops.pop_when(|top| top.precedes(op))
+	/// ```
+	fn pop_when() {}
+
+	fn pop() {}
+	fn push() {}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
 	Add = 0b00,
