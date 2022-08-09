@@ -347,8 +347,8 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 
 	// While there are operators on the operator stack, pop them off and push them into the output
 	// queue.
-	output.append(
-		&mut ops.into_iter()
+	output.extend(
+		ops.into_iter()
 			.map(OutToken::try_from)
 			.collect::<Result<Vec<OutToken>, _>>()?,
 	);
