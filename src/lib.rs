@@ -1,5 +1,3 @@
-#![feature(assert_matches)]
-
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -414,7 +412,6 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::assert_matches::assert_matches;
 	use Operator::*;
 
 	#[test]
@@ -481,8 +478,8 @@ mod tests {
 		use ResolveError::*;
 
 		macro_rules! gen_tests {
-			($($input:literal => $expected:pat,)+) => {
-				$(assert_matches!(
+			($($input:literal => $expected:expr,)+) => {
+				$(assert_eq!(
 					parse_into_tokens(String::from($input)),
 					Err($expected),
 					"input = `{}`", $input
@@ -550,17 +547,17 @@ mod tests {
 		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
 		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
 
-		assert_matches!(
+		assert_eq!(
 			eval(String::from("expr")),
 			Err(ResolveError::InvalidToken('e'))
 		);
-		assert_matches!(
+		assert_eq!(
 			eval(String::from("))")),
 			Err(ResolveError::UnbalancedParen(Paren::Right))
 		);
-		assert_matches!(eval(String::from("(())")), Err(ResolveError::NoValue));
-		assert_matches!(eval(String::from("")), Err(ResolveError::NoValue));
-		assert_matches!(
+		assert_eq!(eval(String::from("(())")), Err(ResolveError::NoValue));
+		assert_eq!(eval(String::from("")), Err(ResolveError::NoValue));
+		assert_eq!(
 			eval(String::from("(")),
 			Err(ResolveError::UnbalancedParen(Paren::Left))
 		);
@@ -573,7 +570,7 @@ mod tests {
 
 	#[test]
 	fn no_operator() {
-		assert_matches!(
+		assert_eq!(
 			eval(String::from("112(1+9)")),
 			Err(ResolveError::LonerNumber(112))
 		);
