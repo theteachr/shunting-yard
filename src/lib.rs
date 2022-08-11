@@ -316,15 +316,12 @@ fn group_numbers(expr: String) -> Vec<String> {
 	new_tokens
 }
 
-/// Converts the infix expression into a stream of tokens in the postfix notation.
+/// Converts the stream of input tokens into a stream of tokens in the postfix notation.
 ///
 /// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
-fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ParseError> {
+fn convert_to_postfix(expr: String) -> Result<Vec<OutToken>, ParseError> {
 	let mut output = Vec::new();
 	let mut ops = Stack::new();
-
-	// 23  + 5 => ["23", "+", "5"]
-	// 23+58546 => ["23", "+", "58546"]
 
 	let tokens = group_numbers(expr)
 		.into_iter()
@@ -354,15 +351,26 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ParseError> {
 }
 
 pub fn parse(expr: String) -> Result<String, ParseError> {
-	Ok(parse_into_tokens(expr)?
+	Ok(convert_to_postfix(expr)?
 		.into_iter()
 		.map(String::from)
 		.collect::<Vec<String>>()
 		.join(" "))
 }
 
+/// Evaluates the the infix expression contained in `expr`.
+///
+/// # Usage
+///
+/// ```
+/// use shunting_yard::eval;
+///
+/// let expr = String::from("1+2-(2+1)*2");
+///
+/// assert_eq!(eval(expr), Ok(-3));
+/// ```
 pub fn eval(expr: String) -> Result<i32, ParseError> {
-	let tokens = parse_into_tokens(expr)?;
+	let tokens = convert_to_postfix(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
 	for token in tokens {
@@ -475,7 +483,7 @@ mod tests {
 		macro_rules! gen_tests {
 			($($input:literal => $expected:expr,)+) => {
 				$(assert_eq!(
-					parse_into_tokens(String::from($input)),
+					convert_to_postfix(String::from($input)),
 					Err($expected),
 					"input = `{}`", $input
 				);)+
@@ -517,7 +525,7 @@ mod tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
 				$(
 					assert_eq!(
-						parse_into_tokens(String::from($input)).map(Vec::from),
+						convert_to_postfix(String::from($input)).map(Vec::from),
 						Ok(vec![$(gen_token!($variant)),*]),
 						"input = `{}`", $input
 					);
