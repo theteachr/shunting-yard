@@ -313,8 +313,6 @@ fn group_numbers(expr: String) -> Vec<String> {
 		new_tokens.push(current_num.iter().collect::<String>());
 	}
 
-	dbg!(&new_tokens);
-
 	new_tokens
 }
 
@@ -367,14 +365,11 @@ pub fn eval(expr: String) -> Result<i32, ParseError> {
 	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
-	dbg!(&tokens);
-
 	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
 			OutToken::Op(op) => {
 				let val = handle_operation_evaluation(op, &mut numbers)?;
-				dbg!(val);
 				numbers.push_front(val);
 			}
 		}
