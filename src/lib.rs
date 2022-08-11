@@ -174,7 +174,7 @@ impl Display for InToken {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ResolveError {
+pub enum ParseError {
 	InvalidToken(char),
 	UnbalancedParen(Paren),
 	NotEnoughOperands,
@@ -191,19 +191,19 @@ pub struct UnbalancedParen(Paren);
 #[derive(Debug, Eq, PartialEq)]
 pub struct NotEnoughOperands;
 
-impl From<NotEnoughOperands> for ResolveError {
+impl From<NotEnoughOperands> for ParseError {
 	fn from(_: NotEnoughOperands) -> Self {
 		Self::NotEnoughOperands
 	}
 }
 
-impl From<UnbalancedParen> for ResolveError {
+impl From<UnbalancedParen> for ParseError {
 	fn from(unbalanced_paren: UnbalancedParen) -> Self {
 		Self::UnbalancedParen(unbalanced_paren.0)
 	}
 }
 
-impl From<InvalidToken> for ResolveError {
+impl From<InvalidToken> for ParseError {
 	fn from(invalid_token: InvalidToken) -> Self {
 		Self::InvalidToken(invalid_token.0)
 	}
@@ -321,7 +321,7 @@ fn group_numbers(expr: String) -> Vec<String> {
 /// Converts the infix expression into a stream of tokens in the postfix notation.
 ///
 /// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
-fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
+fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ParseError> {
 	let mut output = Vec::new();
 	let mut ops = Stack::new();
 
@@ -355,7 +355,7 @@ fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
 	Ok(output)
 }
 
-pub fn parse(expr: String) -> Result<String, ResolveError> {
+pub fn parse(expr: String) -> Result<String, ParseError> {
 	Ok(parse_into_tokens(expr)?
 		.into_iter()
 		.map(String::from)
@@ -363,7 +363,7 @@ pub fn parse(expr: String) -> Result<String, ResolveError> {
 		.join(" "))
 }
 
-pub fn eval(expr: String) -> Result<i32, ResolveError> {
+pub fn eval(expr: String) -> Result<i32, ParseError> {
 	let tokens = parse_into_tokens(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
@@ -381,11 +381,11 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	}
 
 	// There has to be only one element in `numbers`.
-	let result = numbers.pop_front().ok_or(ResolveError::NoValue);
+	let result = numbers.pop_front().ok_or(ParseError::NoValue);
 
 	numbers
 		.pop_front()
-		.map_or(result, |n| Err(ResolveError::LonerNumber(n)))
+		.map_or(result, |n| Err(ParseError::LonerNumber(n)))
 }
 
 // 1+2-(2+1)*2
@@ -475,7 +475,7 @@ mod tests {
 	#[test]
 	fn parsing_invalid_expressions() {
 		use Paren::*;
-		use ResolveError::*;
+		use ParseError::*;
 
 		macro_rules! gen_tests {
 			($($input:literal => $expected:expr,)+) => {
@@ -549,17 +549,17 @@ mod tests {
 
 		assert_eq!(
 			eval(String::from("expr")),
-			Err(ResolveError::InvalidToken('e'))
+			Err(ParseError::InvalidToken('e'))
 		);
 		assert_eq!(
 			eval(String::from("))")),
-			Err(ResolveError::UnbalancedParen(Paren::Right))
+			Err(ParseError::UnbalancedParen(Paren::Right))
 		);
-		assert_eq!(eval(String::from("(())")), Err(ResolveError::NoValue));
-		assert_eq!(eval(String::from("")), Err(ResolveError::NoValue));
+		assert_eq!(eval(String::from("(())")), Err(ParseError::NoValue));
+		assert_eq!(eval(String::from("")), Err(ParseError::NoValue));
 		assert_eq!(
 			eval(String::from("(")),
-			Err(ResolveError::UnbalancedParen(Paren::Left))
+			Err(ParseError::UnbalancedParen(Paren::Left))
 		);
 	}
 
@@ -572,7 +572,7 @@ mod tests {
 	fn no_operator() {
 		assert_eq!(
 			eval(String::from("112(1+9)")),
-			Err(ResolveError::LonerNumber(112))
+			Err(ParseError::LonerNumber(112))
 		);
 	}
 }
