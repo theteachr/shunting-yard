@@ -1,20 +1,17 @@
+mod errors;
 mod stack;
 mod tokens;
-mod errors;
 
 use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::iter::Iterator;
 
-use crate::tokens::*;
 use crate::errors::*;
 use crate::stack::*;
+use crate::tokens::*;
 
 // TODO Add 'em comments.
 // TODO Handle negative numbers and all the other jazz with a unary minus.
-
-
-
 
 fn pop_until_left_paren(
 	output: &mut Vec<OutToken>,
@@ -320,20 +317,11 @@ mod tests {
 		assert_eq!(eval("(0)").unwrap(), 0);
 		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 
-		assert_eq!(
-			eval("expr"),
-			Err(ParseError::InvalidToken('e'))
-		);
-		assert_eq!(
-			eval("))"),
-			Err(ParseError::UnbalancedParen(Paren::Right))
-		);
+		assert_eq!(eval("expr"), Err(ParseError::InvalidToken('e')));
+		assert_eq!(eval("))"), Err(ParseError::UnbalancedParen(Paren::Right)));
 		assert_eq!(eval("(())"), Err(ParseError::NoValue));
 		assert_eq!(eval(""), Err(ParseError::NoValue));
-		assert_eq!(
-			eval("("),
-			Err(ParseError::UnbalancedParen(Paren::Left))
-		);
+		assert_eq!(eval("("), Err(ParseError::UnbalancedParen(Paren::Left)));
 	}
 
 	#[test]
@@ -343,9 +331,6 @@ mod tests {
 
 	#[test]
 	fn no_operator() {
-		assert_eq!(
-			eval("112(1+9)"),
-			Err(ParseError::LonerNumber(112))
-		);
+		assert_eq!(eval("112(1+9)"), Err(ParseError::LonerNumber(112)));
 	}
 }
