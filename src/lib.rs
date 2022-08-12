@@ -287,7 +287,7 @@ fn handle_operation_evaluation(
 
 // Worst fn in this code base
 // TODO Tokenize in one pass (just store the spans?)
-fn group_numbers(expr: String) -> Vec<String> {
+fn group_numbers(expr: &str) -> Vec<String> {
 	let mut current_num = Vec::new();
 	let mut new_tokens = Vec::new();
 
@@ -319,7 +319,7 @@ fn group_numbers(expr: String) -> Vec<String> {
 /// Converts the stream of input tokens into a stream of tokens in the postfix notation.
 ///
 /// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
-fn convert_to_postfix(expr: String) -> Result<Vec<OutToken>, ParseError> {
+fn convert_to_postfix(expr: &str) -> Result<Vec<OutToken>, ParseError> {
 	let mut output = Vec::new();
 	let mut ops = Stack::new();
 
@@ -350,7 +350,7 @@ fn convert_to_postfix(expr: String) -> Result<Vec<OutToken>, ParseError> {
 	Ok(output)
 }
 
-pub fn parse(expr: String) -> Result<String, ParseError> {
+pub fn parse(expr: &str) -> Result<String, ParseError> {
 	Ok(convert_to_postfix(expr)?
 		.into_iter()
 		.map(String::from)
@@ -365,11 +365,11 @@ pub fn parse(expr: String) -> Result<String, ParseError> {
 /// ```
 /// use shunting_yard::eval;
 ///
-/// let expr = String::from("1+2-(2+1)*2");
+/// let expr = "1+2-(2+1)*2";
 ///
 /// assert_eq!(eval(expr), Ok(-3));
 /// ```
-pub fn eval(expr: String) -> Result<i32, ParseError> {
+pub fn eval(expr: &str) -> Result<i32, ParseError> {
 	let tokens = convert_to_postfix(expr)?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
@@ -483,7 +483,7 @@ mod tests {
 		macro_rules! gen_tests {
 			($($input:literal => $expected:expr,)+) => {
 				$(assert_eq!(
-					convert_to_postfix(String::from($input)),
+					convert_to_postfix($input),
 					Err($expected),
 					"input = `{}`", $input
 				);)+
@@ -525,7 +525,7 @@ mod tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
 				$(
 					assert_eq!(
-						convert_to_postfix(String::from($input)).map(Vec::from),
+						convert_to_postfix($input).map(Vec::from),
 						Ok(vec![$(gen_token!($variant)),*]),
 						"input = `{}`", $input
 					);
@@ -544,37 +544,37 @@ mod tests {
 
 	#[test]
 	fn eval_works() {
-		assert_eq!(eval(String::from("1+2-(2+1)*2")).unwrap(), -3);
-		assert_eq!(eval(String::from("2+(3*(8-4))")).unwrap(), 14);
-		assert_eq!(eval(String::from("0")).unwrap(), 0);
-		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
-		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
+		assert_eq!(eval("1+2-(2+1)*2").unwrap(), -3);
+		assert_eq!(eval("2+(3*(8-4))").unwrap(), 14);
+		assert_eq!(eval("0").unwrap(), 0);
+		assert_eq!(eval("(0)").unwrap(), 0);
+		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 
 		assert_eq!(
-			eval(String::from("expr")),
+			eval("expr"),
 			Err(ParseError::InvalidToken('e'))
 		);
 		assert_eq!(
-			eval(String::from("))")),
+			eval("))"),
 			Err(ParseError::UnbalancedParen(Paren::Right))
 		);
-		assert_eq!(eval(String::from("(())")), Err(ParseError::NoValue));
-		assert_eq!(eval(String::from("")), Err(ParseError::NoValue));
+		assert_eq!(eval("(())"), Err(ParseError::NoValue));
+		assert_eq!(eval(""), Err(ParseError::NoValue));
 		assert_eq!(
-			eval(String::from("(")),
+			eval("("),
 			Err(ParseError::UnbalancedParen(Paren::Left))
 		);
 	}
 
 	#[test]
 	fn spaced_single_digit_numbers() {
-		assert!(eval(String::from("112+(1 9)")).is_err());
+		assert!(eval("112+(1 9)").is_err());
 	}
 
 	#[test]
 	fn no_operator() {
 		assert_eq!(
-			eval(String::from("112(1+9)")),
+			eval("112(1+9)"),
 			Err(ParseError::LonerNumber(112))
 		);
 	}
