@@ -1,234 +1,56 @@
-#![feature(assert_matches)]
+mod errors;
+mod postfix_expression;
+mod stack;
+mod tokens;
 
 use std::collections::VecDeque;
-use std::convert::TryFrom;
-use std::fmt::Display;
+use std::iter::Iterator;
+
+use errors::*;
+use postfix_expression::PostfixExpression;
+use stack::*;
+use tokens::*;
 
 // TODO Add 'em comments.
 // TODO Handle negative numbers and all the other jazz with a unary minus.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Operator {
-	Add = 0b00,
-	Sub = 0b01,
-	Mul = 0b10,
-	Div = 0b11,
-}
+/// Converts the stream of input tokens into a stream of tokens in the postfix notation.
+///
+/// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
+fn convert_to_postfix(expr: &str) -> Result<PostfixExpression, ParseError> {
+	let mut output = Vec::new();
+	let mut ops = Stack::new();
 
-impl Display for Operator {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let text = match self {
-			Self::Add => "+",
-			Self::Sub => "-",
-			Self::Mul => "*",
-			Self::Div => "/",
-		};
+	let tokens = group_numbers(expr)
+		.into_iter()
+		.map(InToken::try_from)
+		.collect::<Result<Vec<InToken>, _>>()?;
 
-		text.fmt(f)
-	}
-}
-
-impl Operator {
-	fn precedes(self, rhs: Self) -> bool {
-		(self as u8 >> 1) >= (rhs as u8 >> 1)
-	}
-
-	fn perform(&self, a: i32, b: i32) -> i32 {
-		match self {
-			Self::Add => a + b,
-			Self::Sub => a - b,
-			Self::Mul => a * b,
-			Self::Div => a / b,
-		}
-	}
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum Paren {
-	Left,
-	Right,
-}
-
-impl Display for Paren {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let c = match self {
-			Self::Left => "(",
-			Self::Right => ")",
-		};
-
-		c.fmt(f)
-	}
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum InToken {
-	Num(i32),
-	Op(Operator),
-	Paren(Paren),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum OpStackToken {
-	Op(Operator),
-	LeftParen,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum OutToken {
-	Num(i32),
-	Op(Operator),
-}
-
-impl OpStackToken {
-	fn precedes(&self, rhs: Operator) -> bool {
-		match self {
-			Self::LeftParen => false,
-			Self::Op(op) => op.precedes(rhs),
-		}
-	}
-}
-
-impl TryFrom<OpStackToken> for OutToken {
-	type Error = UnbalancedParen;
-
-	fn try_from(token: OpStackToken) -> Result<Self, Self::Error> {
+	for token in tokens {
 		match token {
-			OpStackToken::Op(op) => Ok(Self::Op(op)),
-			OpStackToken::LeftParen => Err(UnbalancedParen(Paren::Left)),
-		}
-	}
-}
-
-impl From<OutToken> for String {
-	fn from(token: OutToken) -> Self {
-		match token {
-			OutToken::Num(n) => n.to_string(),
-			OutToken::Op(op) => op.to_string(),
-		}
-	}
-}
-
-impl Display for InToken {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Num(n) => n.fmt(f),
-			Self::Op(op) => op.fmt(f),
-			Self::Paren(paren) => paren.fmt(f),
-		}
-	}
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum ResolveError {
-	InvalidToken(char),
-	UnbalancedParen(Paren),
-	NotEnoughOperands,
-	NoValue,
-	LonerNumber(i32),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct InvalidToken(char);
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct UnbalancedParen(Paren);
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct NotEnoughOperands;
-
-impl From<NotEnoughOperands> for ResolveError {
-	fn from(_: NotEnoughOperands) -> Self {
-		Self::NotEnoughOperands
-	}
-}
-
-impl From<UnbalancedParen> for ResolveError {
-	fn from(unbalanced_paren: UnbalancedParen) -> Self {
-		Self::UnbalancedParen(unbalanced_paren.0)
-	}
-}
-
-impl From<InvalidToken> for ResolveError {
-	fn from(invalid_token: InvalidToken) -> Self {
-		Self::InvalidToken(invalid_token.0)
-	}
-}
-
-impl From<Operator> for InToken {
-	fn from(op: Operator) -> Self {
-		Self::Op(op)
-	}
-}
-
-impl From<Operator> for OpStackToken {
-	fn from(op: Operator) -> Self {
-		Self::Op(op)
-	}
-}
-
-impl From<Paren> for InToken {
-	fn from(paren: Paren) -> Self {
-		Self::Paren(paren)
-	}
-}
-
-impl TryFrom<String> for InToken {
-	type Error = InvalidToken;
-
-	fn try_from(text: String) -> Result<Self, Self::Error> {
-		Ok(match text.as_str() {
-			"+" => Operator::Add.into(),
-			"-" => Operator::Sub.into(),
-			"*" => Operator::Mul.into(),
-			"/" => Operator::Div.into(),
-			"(" => Paren::Left.into(),
-			")" => Paren::Right.into(),
-			s => s
-				.parse::<i32>()
-				.map(InToken::Num)
-				.map_err(|_| InvalidToken(s.chars().next().unwrap()))?,
-		})
-	}
-}
-
-fn pop_until_left_paren(
-	output: &mut Vec<OutToken>,
-	ops: &mut Vec<OpStackToken>,
-) -> Result<(), UnbalancedParen> {
-	while let Some(op) = ops.pop() {
-		match op {
-			OpStackToken::LeftParen => return Ok(()),
-			OpStackToken::Op(o) => output.push(OutToken::Op(o)),
+			InToken::Num(n) => output.push(OutToken::Num(n)),
+			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
+			InToken::Paren(paren) => match paren {
+				Paren::Left => ops.push(OpStackToken::LeftParen),
+				Paren::Right => pop_until_left_paren(&mut output, &mut ops)?,
+			},
 		}
 	}
 
-	Err(UnbalancedParen(Paren::Right))
+	// While there are operators on the operator stack, pop them off and push them into the output
+	// queue.
+	output.extend(
+		ops.into_iter()
+			.map(OutToken::try_from)
+			.collect::<Result<Vec<OutToken>, _>>()?,
+	);
+
+	Ok(output.into())
 }
 
-fn handle_operation_parsing(op: Operator, output: &mut Vec<OutToken>, ops: &mut Vec<OpStackToken>) {
-	// While the top of the operator stack has a higher precedence than `op`,
-	// pop it off and push it to the output queue.
-	while ops.last().filter(|&top| top.precedes(op)).is_some() {
-		if let Some(OpStackToken::Op(top)) = ops.pop() {
-			output.push(OutToken::Op(top));
-		}
-	}
-
-	ops.push(op.into())
-}
-
-fn handle_operation_evaluation(
-	op: Operator,
-	numbers: &mut VecDeque<i32>,
-) -> Result<i32, NotEnoughOperands> {
-	numbers
-		.pop_front()
-		.zip(numbers.pop_front())
-		.map(|(rop, lop)| op.perform(lop, rop))
-		.ok_or(NotEnoughOperands)
-}
-
-fn group_numbers(expr: String) -> Vec<String> {
+// Worst fn in this code base
+// TODO Tokenize in one pass (just store the spans?)
+fn group_numbers(expr: &str) -> Vec<String> {
 	let mut current_num = Vec::new();
 	let mut new_tokens = Vec::new();
 
@@ -257,51 +79,66 @@ fn group_numbers(expr: String) -> Vec<String> {
 	new_tokens
 }
 
-/// Converts the infix expression into a stream of tokens in the postfix notation.
-///
-/// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
-fn parse_into_tokens(expr: String) -> Result<Vec<OutToken>, ResolveError> {
-	let mut output = Vec::new();
-	let mut ops = Vec::new();
-
-	// 23  + 5 => ["23", "+", "5"]
-	// 23+58546 => ["23", "+", "58546"]
-
-	let tokens = group_numbers(expr)
-		.into_iter()
-		.map(InToken::try_from)
-		.collect::<Result<Vec<InToken>, _>>()?;
-
-	for token in tokens {
-		match token {
-			InToken::Num(n) => output.push(OutToken::Num(n)),
-			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
-			InToken::Paren(paren) => match paren {
-				Paren::Left => ops.push(OpStackToken::LeftParen),
-				Paren::Right => pop_until_left_paren(&mut output, &mut ops)?,
-			},
+fn pop_until_left_paren(
+	output: &mut Vec<OutToken>,
+	ops: &mut Stack<OpStackToken>,
+) -> Result<(), UnbalancedParen> {
+	while let Some(op) = ops.pop() {
+		match op {
+			OpStackToken::LeftParen => return Ok(()),
+			OpStackToken::Op(o) => output.push(OutToken::Op(o)),
 		}
 	}
 
-	// While there are operators on the operator stack, pop them off and push them into the output
-	// queue.
-	while let Some(op) = ops.pop() {
-		output.push(op.try_into()?)
-	}
-
-	Ok(output)
+	Err(UnbalancedParen(Paren::Right))
 }
 
-pub fn parse(expr: String) -> Result<String, ResolveError> {
-	Ok(parse_into_tokens(expr)?
+fn handle_operation_parsing(
+	op: Operator,
+	output: &mut Vec<OutToken>,
+	ops: &mut Stack<OpStackToken>,
+) {
+	// While the top of the operator stack has a higher precedence than `op`,
+	// pop it off and push it to the output queue.
+	while let Some(top) = ops.pop_op_when(|top| top.precedes(op)) {
+		output.push(OutToken::Op(top));
+	}
+
+	ops.push(op.into())
+}
+
+pub fn handle_operation_evaluation(
+	op: Operator,
+	numbers: &mut VecDeque<i32>,
+) -> Result<i32, NotEnoughOperands> {
+	numbers
+		.pop_front()
+		.zip(numbers.pop_front())
+		.map(|(rop, lop)| op.perform(lop, rop))
+		.ok_or(NotEnoughOperands)
+}
+pub fn parse(expr: &str) -> Result<String, ParseError> {
+	Ok(expr
+		.parse::<PostfixExpression>()?
 		.into_iter()
 		.map(String::from)
 		.collect::<Vec<String>>()
 		.join(" "))
 }
 
-pub fn eval(expr: String) -> Result<i32, ResolveError> {
-	let tokens = parse_into_tokens(expr)?;
+/// Evaluates the the infix expression contained in `expr`.
+///
+/// # Usage
+///
+/// ```
+/// use shunting_yard::eval;
+///
+/// let expr = "1+2-(2+1)*2";
+///
+/// assert_eq!(eval(expr), Ok(-3));
+/// ```
+pub fn eval(expr: &str) -> Result<i32, ParseError> {
+	let tokens = expr.parse::<PostfixExpression>()?;
 	let mut numbers: VecDeque<i32> = VecDeque::new();
 
 	for token in tokens {
@@ -315,11 +152,11 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 	}
 
 	// There has to be only one element in `numbers`.
-	let result = numbers.pop_front().ok_or(ResolveError::NoValue);
+	let result = numbers.pop_front().ok_or(ParseError::NoValue);
 
 	numbers
 		.pop_front()
-		.map_or(result, |n| Err(ResolveError::LonerNumber(n)))
+		.map_or(result, |n| Err(ParseError::LonerNumber(n)))
 }
 
 // 1+2-(2+1)*2
@@ -346,7 +183,6 @@ pub fn eval(expr: String) -> Result<i32, ResolveError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::assert_matches::assert_matches;
 	use Operator::*;
 
 	#[test]
@@ -410,12 +246,12 @@ mod tests {
 	#[test]
 	fn parsing_invalid_expressions() {
 		use Paren::*;
-		use ResolveError::*;
+		use ParseError::*;
 
 		macro_rules! gen_tests {
-			($($input:literal => $expected:pat,)+) => {
-				$(assert_matches!(
-					parse_into_tokens(String::from($input)),
+			($($input:literal => $expected:expr,)+) => {
+				$(assert_eq!(
+					$input.parse::<PostfixExpression>(),
 					Err($expected),
 					"input = `{}`", $input
 				);)+
@@ -457,7 +293,7 @@ mod tests {
 			($($input:literal => [$($variant:tt)*],)+) => {
 				$(
 					assert_eq!(
-						parse_into_tokens(String::from($input)),
+						$input.parse::<PostfixExpression>().map(Vec::from),
 						Ok(vec![$(gen_token!($variant)),*]),
 						"input = `{}`", $input
 					);
@@ -476,38 +312,26 @@ mod tests {
 
 	#[test]
 	fn eval_works() {
-		assert_eq!(eval(String::from("1+2-(2+1)*2")).unwrap(), -3);
-		assert_eq!(eval(String::from("2+(3*(8-4))")).unwrap(), 14);
-		assert_eq!(eval(String::from("0")).unwrap(), 0);
-		assert_eq!(eval(String::from("(0)")).unwrap(), 0);
-		assert_eq!(eval(String::from("(((0-1)))")).unwrap(), -1);
+		assert_eq!(eval("1+2-(2+1)*2").unwrap(), -3);
+		assert_eq!(eval("2+(3*(8-4))").unwrap(), 14);
+		assert_eq!(eval("0").unwrap(), 0);
+		assert_eq!(eval("(0)").unwrap(), 0);
+		assert_eq!(eval("(((0-1)))").unwrap(), -1);
 
-		assert_matches!(
-			eval(String::from("expr")),
-			Err(ResolveError::InvalidToken('e'))
-		);
-		assert_matches!(
-			eval(String::from("))")),
-			Err(ResolveError::UnbalancedParen(Paren::Right))
-		);
-		assert_matches!(eval(String::from("(())")), Err(ResolveError::NoValue));
-		assert_matches!(eval(String::from("")), Err(ResolveError::NoValue));
-		assert_matches!(
-			eval(String::from("(")),
-			Err(ResolveError::UnbalancedParen(Paren::Left))
-		);
+		assert_eq!(eval("expr"), Err(ParseError::InvalidToken('e')));
+		assert_eq!(eval("))"), Err(ParseError::UnbalancedParen(Paren::Right)));
+		assert_eq!(eval("(())"), Err(ParseError::NoValue));
+		assert_eq!(eval(""), Err(ParseError::NoValue));
+		assert_eq!(eval("("), Err(ParseError::UnbalancedParen(Paren::Left)));
 	}
 
 	#[test]
 	fn spaced_single_digit_numbers() {
-		assert!(eval(String::from("112+(1 9)")).is_err());
+		assert!(eval("112+(1 9)").is_err());
 	}
 
 	#[test]
 	fn no_operator() {
-		assert_matches!(
-			eval(String::from("112(1+9)")),
-			Err(ResolveError::LonerNumber(112))
-		);
+		assert_eq!(eval("112(1+9)"), Err(ParseError::LonerNumber(112)));
 	}
 }
