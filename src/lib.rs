@@ -117,6 +117,7 @@ pub fn handle_operation_evaluation(
 		.map(|(rop, lop)| op.perform(lop, rop))
 		.ok_or(NotEnoughOperands)
 }
+
 pub fn parse(expr: &str) -> Result<String, ParseError> {
 	Ok(expr
 		.parse::<PostfixExpression>()?
@@ -133,9 +134,11 @@ pub fn parse(expr: &str) -> Result<String, ParseError> {
 /// ```
 /// use shunting_yard::eval;
 ///
-/// let expr = "1+2-(2+1)*2";
+/// let valid_expr = "1+2-(2+1)*2";
+/// let invalid_expr = "x";
 ///
-/// assert_eq!(eval(expr), Ok(-3));
+/// assert_eq!(eval(valid_expr), Ok(-3));
+/// assert!(eval(invalid_expr).is_err())
 /// ```
 pub fn eval(expr: &str) -> Result<i32, ParseError> {
 	let tokens = expr.parse::<PostfixExpression>()?;
