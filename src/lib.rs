@@ -4,7 +4,9 @@ mod stack;
 mod tokens;
 
 use std::collections::VecDeque;
+use std::fmt;
 use std::iter::Iterator;
+use std::str::FromStr;
 
 use errors::*;
 use postfix_expression::PostfixExpression;
@@ -118,13 +120,31 @@ pub fn handle_operation_evaluation(
 		.ok_or(NotEnoughOperands)
 }
 
-pub fn parse(expr: &str) -> Result<String, ParseError> {
-	Ok(expr
-		.parse::<PostfixExpression>()?
-		.into_iter()
-		.map(String::from)
-		.collect::<Vec<String>>()
-		.join(" "))
+pub struct PostfixString(String);
+
+impl From<String> for PostfixString {
+	fn from(s: String) -> Self {
+		Self(s)
+	}
+}
+
+impl FromStr for PostfixString {
+	type Err = ParseError;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		Ok(s.parse::<PostfixExpression>()?
+			.into_iter()
+			.map(String::from)
+			.collect::<Vec<String>>()
+			.join(" ")
+			.into())
+	}
+}
+
+impl fmt::Display for PostfixString {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.0.fmt(f)
+	}
 }
 
 /// Evaluates the the infix expression contained in `expr`.
