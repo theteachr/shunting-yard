@@ -1,3 +1,12 @@
+use std::collections::VecDeque;
+
+use crate::{
+	errors::NotEnoughOperands,
+	stack::{OpStack, Stack},
+};
+
+use super::{OpStackToken, OutToken};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
 	Add = 0b00,
@@ -31,5 +40,23 @@ impl Operator {
 			Self::Mul => a * b,
 			Self::Div => a / b,
 		}
+	}
+
+	pub fn handle_parsing(self, output: &mut Vec<OutToken>, ops: &mut Stack<OpStackToken>) {
+		// While the top of the operator stack has a higher precedence than `op`,
+		// pop it off and push it to the output queue.
+		while let Some(top) = ops.pop_op_when(|top| top.precedes(self)) {
+			output.push(OutToken::Op(top));
+		}
+
+		ops.push(self.into())
+	}
+
+	pub fn evaluate(self, numbers: &mut VecDeque<i32>) -> Result<i32, NotEnoughOperands> {
+		numbers
+			.pop_front()
+			.zip(numbers.pop_front())
+			.map(|(rop, lop)| self.perform(lop, rop))
+			.ok_or(NotEnoughOperands)
 	}
 }

@@ -23,19 +23,15 @@ fn convert_to_postfix(expr: &str) -> Result<PostfixExpression, ParseError> {
 	let mut output = Vec::new();
 	let mut ops = Stack::new();
 
-	let tokens = group_numbers(expr)
+	for token in group_numbers(expr)
 		.into_iter()
 		.map(InToken::try_from)
-		.collect::<Result<Vec<InToken>, _>>()?;
-
-	for token in tokens {
+		.collect::<Result<Vec<InToken>, InvalidToken>>()?
+	{
 		match token {
 			InToken::Num(n) => output.push(OutToken::Num(n)),
-			InToken::Op(op) => handle_operation_parsing(op, &mut output, &mut ops),
-			InToken::Paren(paren) => match paren {
-				Paren::Left => ops.push(OpStackToken::LeftParen),
-				Paren::Right => pop_until_left_paren(&mut output, &mut ops)?,
-			},
+			InToken::Op(op) => op.handle_parsing(&mut output, &mut ops),
+			InToken::Paren(paren) => paren.handle_parsing(&mut output, &mut ops)?,
 		}
 	}
 
@@ -81,45 +77,6 @@ fn group_numbers(expr: &str) -> Vec<String> {
 	new_tokens
 }
 
-fn pop_until_left_paren(
-	output: &mut Vec<OutToken>,
-	ops: &mut Stack<OpStackToken>,
-) -> Result<(), UnbalancedParen> {
-	while let Some(op) = ops.pop() {
-		match op {
-			OpStackToken::LeftParen => return Ok(()),
-			OpStackToken::Op(o) => output.push(OutToken::Op(o)),
-		}
-	}
-
-	Err(UnbalancedParen(Paren::Right))
-}
-
-fn handle_operation_parsing(
-	op: Operator,
-	output: &mut Vec<OutToken>,
-	ops: &mut Stack<OpStackToken>,
-) {
-	// While the top of the operator stack has a higher precedence than `op`,
-	// pop it off and push it to the output queue.
-	while let Some(top) = ops.pop_op_when(|top| top.precedes(op)) {
-		output.push(OutToken::Op(top));
-	}
-
-	ops.push(op.into())
-}
-
-pub fn handle_operation_evaluation(
-	op: Operator,
-	numbers: &mut VecDeque<i32>,
-) -> Result<i32, NotEnoughOperands> {
-	numbers
-		.pop_front()
-		.zip(numbers.pop_front())
-		.map(|(rop, lop)| op.perform(lop, rop))
-		.ok_or(NotEnoughOperands)
-}
-
 pub struct PostfixString(String);
 
 impl From<String> for PostfixString {
@@ -147,6 +104,14 @@ impl fmt::Display for PostfixString {
 	}
 }
 
+trait Enter: Sized {
+	fn enter(self, queue: &mut VecDeque<Self>) {
+		queue.push_front(self);
+	}
+}
+
+impl Enter for i32 {}
+
 /// Evaluates the the infix expression contained in `expr`.
 ///
 /// # Usage
@@ -167,10 +132,7 @@ pub fn eval(expr: &str) -> Result<i32, ParseError> {
 	for token in tokens {
 		match token {
 			OutToken::Num(n) => numbers.push_front(n),
-			OutToken::Op(op) => {
-				let val = handle_operation_evaluation(op, &mut numbers)?;
-				numbers.push_front(val);
-			}
+			OutToken::Op(op) => op.evaluate(&mut numbers)?.enter(&mut numbers),
 		}
 	}
 

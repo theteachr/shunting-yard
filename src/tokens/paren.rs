@@ -1,9 +1,35 @@
 use std::fmt;
 
+use crate::{
+	errors::UnbalancedParen,
+	stack::{OpStack, Stack},
+};
+
+use super::{OpStackToken, OutToken};
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum Paren {
 	Left,
 	Right,
+}
+
+impl Paren {
+	pub fn handle_parsing(
+		self,
+		output: &mut Vec<OutToken>,
+		ops: &mut Stack<OpStackToken>,
+	) -> Result<(), UnbalancedParen> {
+		match self {
+			p @ Paren::Left => Ok(ops.push(p.into())),
+			Paren::Right => ops.pop_until_left_paren(output),
+		}
+	}
+}
+
+impl From<Paren> for OpStackToken {
+	fn from(_: Paren) -> Self {
+		Self::LeftParen
+	}
 }
 
 impl fmt::Display for Paren {
