@@ -1,4 +1,4 @@
-use crate::tokens::*;
+use crate::{errors::UnbalancedParen, tokens::*};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Stack<T>(Vec<T>);
@@ -28,9 +28,10 @@ impl<T> From<Stack<T>> for Vec<T> {
 }
 
 pub(crate) trait OpStack {
-	fn pop_op_when<P>(&mut self, p: P) -> Option<Operator>
+	fn pop_op_when<F>(&mut self, predicate: F) -> Option<Operator>
 	where
-		P: FnOnce(&OpStackToken) -> bool;
+		F: FnOnce(&OpStackToken) -> bool;
+	fn pop_until_left_paren(&mut self, output: &mut Vec<OutToken>) -> Result<(), UnbalancedParen>;
 }
 
 impl<T> Iterator for Stack<T> {
@@ -42,16 +43,27 @@ impl<T> Iterator for Stack<T> {
 }
 
 impl OpStack for Stack<OpStackToken> {
-	fn pop_op_when<P>(&mut self, p: P) -> Option<Operator>
+	fn pop_op_when<F>(&mut self, predicate: F) -> Option<Operator>
 	where
-		P: FnOnce(&OpStackToken) -> bool,
+		F: FnOnce(&OpStackToken) -> bool,
 	{
-		if self.last().filter(|&top| p(top)).is_some() {
+		if self.last().filter(|&top| predicate(top)).is_some() {
 			if let Some(OpStackToken::Op(op)) = self.pop() {
 				return Some(op);
 			}
 		}
 
 		None
+	}
+
+	fn pop_until_left_paren(&mut self, output: &mut Vec<OutToken>) -> Result<(), UnbalancedParen> {
+		while let Some(op) = self.pop() {
+			match op {
+				OpStackToken::LeftParen => return Ok(()),
+				OpStackToken::Op(o) => output.push(OutToken::Op(o)),
+			}
+		}
+
+		Err(UnbalancedParen(Paren::Right))
 	}
 }
