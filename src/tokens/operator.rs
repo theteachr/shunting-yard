@@ -46,7 +46,7 @@ impl Operator {
 		// While the top of the operator stack has a higher precedence than `op`,
 		// pop it off and push it to the output queue.
 		while let Some(top) = ops.pop_op_when(|top| top.precedes(self)) {
-			output.push(OutToken::Op(top));
+			output.push(top.into());
 		}
 
 		ops.push(self.into())
@@ -58,5 +58,11 @@ impl Operator {
 			.zip(numbers.pop_front())
 			.map(|(rop, lop)| self.perform(lop, rop))
 			.ok_or(NotEnoughOperands)
+	}
+}
+
+impl From<Operator> for OutToken {
+	fn from(op: Operator) -> Self {
+		Self::Op(op)
 	}
 }

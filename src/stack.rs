@@ -3,6 +3,12 @@ use crate::{errors::UnbalancedParen, tokens::*};
 #[derive(Debug, PartialEq, Eq)]
 pub struct Stack<T>(Vec<T>);
 
+impl<T> Default for Stack<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Stack<T> {
 	pub fn new() -> Self {
 		Self(Vec::new())

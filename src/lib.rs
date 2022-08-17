@@ -21,7 +21,7 @@ use tokens::*;
 /// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
 fn convert_to_postfix(expr: &str) -> Result<PostfixExpression, ParseError> {
 	let mut output = Vec::new();
-	let mut ops = Stack::new();
+	let mut ops = Stack::default();
 
 	for token in group_numbers(expr)
 		.into_iter()

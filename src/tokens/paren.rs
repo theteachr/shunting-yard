@@ -20,9 +20,11 @@ impl Paren {
 		ops: &mut Stack<OpStackToken>,
 	) -> Result<(), UnbalancedParen> {
 		match self {
-			p @ Paren::Left => Ok(ops.push(p.into())),
-			Paren::Right => ops.pop_until_left_paren(output),
-		}
+			p @ Paren::Left => ops.push(p.into()),
+			Paren::Right => ops.pop_until_left_paren(output)?,
+		};
+
+		Ok(())
 	}
 }
 
