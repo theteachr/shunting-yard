@@ -11,71 +11,8 @@ use std::str::FromStr;
 use errors::*;
 use postfix_expression::PostfixExpression;
 use stack::*;
-use tokens::*;
 
-// TODO Add 'em comments.
-// TODO Handle negative numbers and all the other jazz with a unary minus.
-
-/// Converts the stream of input tokens into a stream of tokens in the postfix notation.
-///
-/// This can return a stream that is not valid. Currently, the error is caught at `eval`uation.
-fn convert_to_postfix(expr: &str) -> Result<PostfixExpression, ParseError> {
-	let mut output = Vec::new();
-	let mut ops = Stack::default();
-
-	for token in group_numbers(expr)
-		.into_iter()
-		.map(InToken::try_from)
-		.collect::<Result<Vec<InToken>, InvalidToken>>()?
-	{
-		match token {
-			InToken::Num(n) => output.push(OutToken::Num(n)),
-			InToken::Op(op) => op.handle_parsing(&mut output, &mut ops),
-			InToken::Paren(paren) => paren.handle_parsing(&mut output, &mut ops)?,
-		}
-	}
-
-	// While there are operators on the operator stack, pop them off and push them into the output
-	// queue.
-	output.extend(
-		ops.into_iter()
-			.map(OutToken::try_from)
-			.collect::<Result<Vec<OutToken>, _>>()?,
-	);
-
-	Ok(output.into())
-}
-
-// Worst fn in this code base
-// TODO Tokenize in one pass (just store the spans?)
-fn group_numbers(expr: &str) -> Vec<String> {
-	let mut current_num = Vec::new();
-	let mut new_tokens = Vec::new();
-
-	for c in expr.chars() {
-		if c.is_ascii_digit() {
-			current_num.push(c);
-			continue;
-		}
-
-		if !current_num.is_empty() {
-			new_tokens.push(current_num.iter().collect::<String>());
-			current_num.clear();
-		}
-
-		if c.is_whitespace() {
-			continue;
-		}
-
-		new_tokens.push(c.to_string());
-	}
-
-	if !current_num.is_empty() {
-		new_tokens.push(current_num.iter().collect::<String>());
-	}
-
-	new_tokens
-}
+// TODO: Handle negative numbers and all the other jazz with a unary minus.
 
 pub struct PostfixString(String);
 
@@ -89,12 +26,14 @@ impl FromStr for PostfixString {
 	type Err = ParseError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		Ok(s.parse::<PostfixExpression>()?
+		let result = s
+			.parse::<PostfixExpression>()?
 			.into_iter()
 			.map(String::from)
 			.collect::<Vec<String>>()
-			.join(" ")
-			.into())
+			.join("|");
+
+		Ok(format!("|{result}|").into())
 	}
 }
 
@@ -126,22 +65,7 @@ impl Enter for i32 {}
 /// assert!(eval(invalid_expr).is_err())
 /// ```
 pub fn eval(expr: &str) -> Result<i32, ParseError> {
-	let tokens = expr.parse::<PostfixExpression>()?;
-	let mut numbers: VecDeque<i32> = VecDeque::new();
-
-	for token in tokens {
-		match token {
-			OutToken::Num(n) => numbers.push_front(n),
-			OutToken::Op(op) => op.evaluate(&mut numbers)?.enter(&mut numbers),
-		}
-	}
-
-	// There has to be only one element in `numbers`.
-	let result = numbers.pop_front().ok_or(ParseError::NoValue);
-
-	numbers
-		.pop_front()
-		.map_or(result, |n| Err(ParseError::LonerNumber(n)))
+	expr.parse::<PostfixExpression>()?.eval()
 }
 
 // 1+2-(2+1)*2
@@ -168,6 +92,7 @@ pub fn eval(expr: &str) -> Result<i32, ParseError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use tokens::*;
 	use Operator::*;
 
 	#[test]

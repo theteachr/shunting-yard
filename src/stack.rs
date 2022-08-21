@@ -4,9 +4,9 @@ use crate::{errors::UnbalancedParen, tokens::*};
 pub struct Stack<T>(Vec<T>);
 
 impl<T> Default for Stack<T> {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl<T> Stack<T> {

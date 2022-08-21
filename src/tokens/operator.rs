@@ -43,12 +43,13 @@ impl Operator {
 	}
 
 	pub fn handle_parsing(self, output: &mut Vec<OutToken>, ops: &mut Stack<OpStackToken>) {
-		// While the top of the operator stack has a higher precedence than `op`,
+		// While the top of the operator stack has a higher precedence than `self`,
 		// pop it off and push it to the output queue.
 		while let Some(top) = ops.pop_op_when(|top| top.precedes(self)) {
 			output.push(top.into());
 		}
 
+		// Push `self` into the operator stack.
 		ops.push(self.into())
 	}
 
