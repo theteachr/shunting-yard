@@ -20,11 +20,11 @@ impl PostfixExpression {
 		}
 
 		// There has to be only one element in `numbers`.
-		let result = numbers.pop_front().ok_or(ParseError::NoValue);
-
-		numbers
-			.pop_front()
-			.map_or(result, |n| Err(ParseError::LonerNumber(n)))
+		match numbers.pop_front() {
+			Some(val) if numbers.is_empty() => Ok(val),
+			Some(_) => Err(ParseError::LonerNumber(numbers.pop_front().unwrap())),
+			None => Err(ParseError::NoValue),
+		}
 	}
 }
 
