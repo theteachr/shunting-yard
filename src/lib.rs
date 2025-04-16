@@ -26,6 +26,10 @@ impl FromStr for PostfixString {
 	type Err = ParseError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		if s.is_empty() {
+			return Err(ParseError::NoValue);
+		}
+
 		let result = s
 			.parse::<PostfixExpression>()?
 			.into_iter()
